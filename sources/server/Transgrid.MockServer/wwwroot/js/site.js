@@ -50,6 +50,35 @@ async function resetData() {
     }
 }
 
+async function updateData() {
+    const periodSelect = document.getElementById('updatePeriodSelect');
+    const periodMinutes = parseInt(periodSelect.value);
+    
+    if (!confirm(`Update data with ${periodSelect.options[periodSelect.selectedIndex].text} period?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/DataManagement/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ periodMinutes: periodMinutes })
+        });
+        
+        if (response.ok) {
+            showNotification('success', `Data updated with ${periodSelect.options[periodSelect.selectedIndex].text} period!`);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification('error', 'Failed to update data');
+        }
+    } catch (error) {
+        console.error('Error updating data:', error);
+        showNotification('error', 'Error updating data');
+    }
+}
+
 function showNotification(type, message) {
     // Create a toast notification
     const toastContainer = document.getElementById('toastContainer') || createToastContainer();

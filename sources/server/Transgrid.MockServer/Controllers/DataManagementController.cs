@@ -27,4 +27,21 @@ public class DataManagementController : ControllerBase
         _dataStore.ResetToBaseline();
         return Ok(new { message = "Data reset to baseline successfully" });
     }
+
+    [HttpPost("update")]
+    public ActionResult UpdateData([FromBody] UpdateDataRequest request)
+    {
+        if (request == null || request.PeriodMinutes <= 0)
+        {
+            return BadRequest(new { message = "Invalid period specified" });
+        }
+        
+        _dataStore.UpdateData(request.PeriodMinutes);
+        return Ok(new { message = $"Data updated with {request.PeriodMinutes} minute period" });
+    }
+}
+
+public class UpdateDataRequest
+{
+    public int PeriodMinutes { get; set; }
 }

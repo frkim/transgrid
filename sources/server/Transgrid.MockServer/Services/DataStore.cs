@@ -247,6 +247,123 @@ public class DataStore
             }
         }
     }
+
+    // Update Data with realistic changes based on time period
+    public void UpdateData(int periodMinutes)
+    {
+        lock (_lock)
+        {
+            var random = new Random();
+            var now = DateTime.UtcNow;
+            
+            // Update Train Plans
+            foreach (var plan in _trainPlans)
+            {
+                // Update travel date forward by the period
+                plan.TravelDate = plan.TravelDate.AddMinutes(periodMinutes);
+                
+                // Simulate status changes based on period
+                if (plan.Status == "ACTIVE")
+                {
+                    // 10% chance of becoming delayed
+                    if (random.Next(100) < 10)
+                    {
+                        plan.Status = "DELAYED";
+                    }
+                    // 5% chance of being cancelled
+                    else if (random.Next(100) < 5)
+                    {
+                        plan.Status = "CANCELLED";
+                    }
+                }
+                else if (plan.Status == "DELAYED")
+                {
+                    // 20% chance delayed trains become active again
+                    if (random.Next(100) < 20)
+                    {
+                        plan.Status = "ACTIVE";
+                    }
+                }
+            }
+            
+            // Update Negotiated Rates
+            foreach (var rate in _negotiatedRates)
+            {
+                // Update extract status progression
+                if (rate.B2bStatus == "Pending" && random.Next(100) < 30)
+                {
+                    rate.B2bStatus = "Extracted";
+                    rate.B2bExtractDate = now;
+                }
+                else if (rate.B2bStatus == "Pending" && random.Next(100) < 5)
+                {
+                    rate.B2bStatus = "Failed";
+                }
+                
+                // Toggle extract requested flag occasionally
+                if (random.Next(100) < 15)
+                {
+                    rate.ExtractRequested = !rate.ExtractRequested;
+                }
+                
+                // Update discounts slightly (±5%)
+                var tariffKeys = rate.Discounts.Keys.ToList();
+                foreach (var key in tariffKeys)
+                {
+                    if (random.Next(100) < 20)
+                    {
+                        var change = (random.NextDouble() * 0.1) - 0.05; // -5% to +5%
+                        rate.Discounts[key] = Math.Max(0, Math.Min(100, rate.Discounts[key] + change));
+                    }
+                }
+            }
+            
+            // Update CIF Schedules
+            foreach (var schedule in _cifSchedules)
+            {
+                // Update travel dates forward by the period
+                schedule.TravelDate = schedule.TravelDate.AddMinutes(periodMinutes);
+                schedule.ValidFrom = schedule.ValidFrom.AddMinutes(periodMinutes);
+                schedule.ValidTo = schedule.ValidTo.AddMinutes(periodMinutes);
+                
+                // Update schedule times for locations (add minutes to times)
+                foreach (var location in schedule.ScheduleLocations)
+                {
+                    if (!string.IsNullOrEmpty(location.ScheduledArrivalTime))
+                    {
+                        location.ScheduledArrivalTime = UpdateTimeString(location.ScheduledArrivalTime, periodMinutes);
+                    }
+                    if (!string.IsNullOrEmpty(location.ScheduledDepartureTime))
+                    {
+                        location.ScheduledDepartureTime = UpdateTimeString(location.ScheduledDepartureTime, periodMinutes);
+                    }
+                    
+                    // Occasionally change platform
+                    if (random.Next(100) < 10)
+                    {
+                        var platforms = new[] { "1", "2", "3", "4", "5", "6" };
+                        location.Platform = platforms[random.Next(platforms.Length)];
+                    }
+                }
+            }
+        }
+    }
+    
+    private string UpdateTimeString(string timeString, int minutesToAdd)
+    {
+        // Parse time string (format: HH:mm)
+        if (TimeSpan.TryParse(timeString, out var time))
+        {
+            var newTime = time.Add(TimeSpan.FromMinutes(minutesToAdd));
+            // Handle day overflow (wrap around to 0)
+            while (newTime.TotalHours >= 24)
+            {
+                newTime = newTime.Subtract(TimeSpan.FromHours(24));
+            }
+            return newTime.ToString(@"hh\:mm");
+        }
+        return timeString;
+    }
     
     private void SaveBaseline()
     {

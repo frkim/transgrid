@@ -43,7 +43,28 @@
                         </a>
                     </li>
                 </ul>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 align-items-center">
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-outline-info btn-sm" onclick="updateData()">
+                            <i class="bi bi-arrow-repeat"></i> Update Data
+                        </button>
+                        <button type="button" class="btn btn-outline-info btn-sm dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="visually-hidden">Toggle Dropdown</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><h6 class="dropdown-header">Update Period</h6></li>
+                            <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('updatePeriodSelect').value='1'; updateData();">1 minute</a></li>
+                            <li><a class="dropdown-item active" href="#" onclick="event.preventDefault(); document.getElementById('updatePeriodSelect').value='10'; updateData();">10 minutes (default)</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('updatePeriodSelect').value='60'; updateData();">1 hour</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('updatePeriodSelect').value='240'; updateData();">4 hours</a></li>
+                        </ul>
+                        <select id="updatePeriodSelect" class="d-none">
+                            <option value="1">1m</option>
+                            <option value="10" selected>10m</option>
+                            <option value="60">1h</option>
+                            <option value="240">4h</option>
+                        </select>
+                    </div>
                     <button class="btn btn-outline-light btn-sm" onclick="generateNewData()">
                         <i class="bi bi-arrow-clockwise"></i> Generate New Data
                     </button>
