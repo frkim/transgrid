@@ -1,0 +1,270 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "OpsAPI - Train Operational Plans";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="gradient-text">
+        <i class="bi bi-train-front"></i> OpsAPI - Train Operational Plans
+    </h1>
+</div>
+
+<div class="card shadow-lg mb-4">
+    <div class="card-header bg-gradient text-white">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <i class="bi bi-search"></i> Search & Filter
+            </div>
+            <div class="col-md-4 text-end">
+                <span id="record-count" class="badge bg-light text-dark">0 records</span>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-funnel"></i></span>
+            <input type="text" id="searchBox" class="form-control" placeholder="Search by service code, origin, destination, pathway...">
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-lg">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped" id="dataTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="sortable" data-column="serviceCode">
+                            Service Code <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-column="pathway">
+                            Pathway <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-column="travelDate">
+                            Travel Date <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-column="origin">
+                            Origin <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-column="destination">
+                            Destination <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-column="status">
+                            Status <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-column="country">
+                            Country <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr>
+                        <td colspan="8" class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-info-circle"></i> Train Plan Details
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detailContent">
+                <!-- Content will be populated dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    let allData = [];
+    let sortColumn = 'serviceCode';
+    let sortDirection = 'asc';
+    
+    // HTML escape function to prevent XSS
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    async function loadData() {
+        try {
+            const response = await fetch('/api/OpsApi');
+            allData = await response.json();
+            renderTable();
+        } catch (error) {
+            console.error('Error loading data:', error);
+            document.getElementById('tableBody').innerHTML = 
+                '<tr><td colspan="8" class="text-center text-danger">Error loading data</td></tr>';
+        }
+    }
+    
+    function renderTable() {
+        const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+        let filteredData = allData.filter(item => {
+            return (
+                item.serviceCode.toLowerCase().includes(searchTerm) ||
+                item.pathway.toLowerCase().includes(searchTerm) ||
+                item.origin.toLowerCase().includes(searchTerm) ||
+                item.destination.toLowerCase().includes(searchTerm) ||
+                item.status.toLowerCase().includes(searchTerm) ||
+                item.country.toLowerCase().includes(searchTerm)
+            );
+        });
+        
+        // Sort data
+        filteredData.sort((a, b) => {
+            let aVal = a[sortColumn];
+            let bVal = b[sortColumn];
+            
+            if (sortColumn === 'travelDate') {
+                aVal = new Date(aVal);
+                bVal = new Date(bVal);
+            }
+            
+            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+        
+        document.getElementById('record-count').textContent = `${filteredData.length} records`;
+        
+        const tbody = document.getElementById('tableBody');
+        if (filteredData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No records found</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = filteredData.map(item => {
+            const statusBadge = getStatusBadge(item.status);
+            const travelDate = new Date(item.travelDate).toLocaleDateString();
+            
+            return `
+                <tr>
+                    <td><strong>${escapeHtml(item.serviceCode)}</strong></td>
+                    <td><span class="badge bg-info">${escapeHtml(item.pathway)}</span></td>
+                    <td>${escapeHtml(travelDate)}</td>
+                    <td>${escapeHtml(item.origin)}</td>
+                    <td>${escapeHtml(item.destination)}</td>
+                    <td>${statusBadge}</td>
+                    <td><span class="badge bg-secondary">${escapeHtml(item.country)}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewDetails('${escapeHtml(item.id)}')">
+                            <i class="bi bi-eye"></i> View
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+    
+    function getStatusBadge(status) {
+        const badges = {
+            'ACTIVE': '<span class="badge bg-success">Active</span>',
+            'CANCELLED': '<span class="badge bg-danger">Cancelled</span>',
+            'DELAYED': '<span class="badge bg-warning text-dark">Delayed</span>'
+        };
+        return badges[status] || `<span class="badge bg-secondary">${status}</span>`;
+    }
+    
+    function viewDetails(id) {
+        const item = allData.find(x => x.id === id);
+        if (!item) return;
+        
+        const passagePoints = item.passagePoints.length > 0 
+            ? item.passagePoints.map(p => `<span class="badge bg-light text-dark me-1">${p}</span>`).join('')
+            : '<span class="text-muted">None</span>';
+        
+        document.getElementById('detailContent').innerHTML = `
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Service Code:</label>
+                    <p>${item.serviceCode}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Status:</label>
+                    <p>${getStatusBadge(item.status)}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Pathway:</label>
+                    <p><span class="badge bg-info">${item.pathway}</span></p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Travel Date:</label>
+                    <p>${new Date(item.travelDate).toLocaleString()}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Origin:</label>
+                    <p>${item.origin}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Destination:</label>
+                    <p>${item.destination}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Country:</label>
+                    <p><span class="badge bg-secondary">${item.country}</span></p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Plan Type:</label>
+                    <p>${item.planType}</p>
+                </div>
+                <div class="col-12 mb-3">
+                    <label class="fw-bold">Passage Points:</label>
+                    <p>${passagePoints}</p>
+                </div>
+                <div class="col-12 mb-3">
+                    <label class="fw-bold">Created At:</label>
+                    <p>${new Date(item.createdAt).toLocaleString()}</p>
+                </div>
+            </div>
+        `;
+        
+        new bootstrap.Modal(document.getElementById('detailModal')).show();
+    }
+    
+    // Event listeners
+    document.getElementById('searchBox').addEventListener('input', renderTable);
+    
+    document.querySelectorAll('.sortable').forEach(th => {
+        th.addEventListener('click', function() {
+            const column = this.dataset.column;
+            if (sortColumn === column) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = column;
+                sortDirection = 'asc';
+            }
+            
+            // Update sort indicators
+            document.querySelectorAll('.sortable i').forEach(i => {
+                i.className = 'bi bi-arrow-down-up';
+            });
+            this.querySelector('i').className = sortDirection === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
+            
+            renderTable();
+        });
+    });
+    
+    loadData();
+</script>
+}
