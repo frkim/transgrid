@@ -37,6 +37,7 @@ This mock server provides three API endpoints with web-based administration inte
 - **Real-time Filtering** - Search bar for instant data filtering
 - **Detail Popups** - View complete record details in modal windows
 - **Record Counts** - Dynamic badges showing number of records
+- **Swagger UI** - Interactive API documentation at `/swagger`
 
 ### REST API Endpoints
 
@@ -90,6 +91,11 @@ http://localhost:5240
 Or for HTTPS:
 ```
 https://localhost:7133
+```
+
+4. Access the interactive API documentation:
+```
+http://localhost:5240/swagger
 ```
 
 ### Building the Project

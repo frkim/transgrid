@@ -7,6 +7,23 @@ builder.Services.AddRazorPages();
 builder.Services.AddControllers();
 builder.Services.AddSingleton<DataStore>();
 
+// Add Swagger/OpenAPI
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "Transgrid Mock Server API",
+        Version = "v1",
+        Description = "Mock server API for Starline International train operations - simulating OpsAPI, Salesforce, and Network Rail endpoints",
+        Contact = new Microsoft.OpenApi.Models.OpenApiContact
+        {
+            Name = "Transgrid Project",
+            Url = new Uri("https://github.com/frkim/transgrid")
+        }
+    });
+});
+
 // Add CORS for API access
 builder.Services.AddCors(options =>
 {
@@ -41,6 +58,15 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
+
+// Enable Swagger UI
+app.UseSwagger();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Transgrid Mock Server API v1");
+    options.RoutePrefix = "swagger";
+    options.DocumentTitle = "Transgrid Mock Server API Documentation";
+});
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
