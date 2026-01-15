@@ -79,6 +79,13 @@ async function updateData() {
     }
 }
 
+function setPeriodAndUpdate(minutes) {
+    event.preventDefault();
+    const periodSelect = document.getElementById('updatePeriodSelect');
+    periodSelect.value = minutes;
+    updateData();
+}
+
 function showNotification(type, message) {
     // Create a toast notification
     const toastContainer = document.getElementById('toastContainer') || createToastContainer();

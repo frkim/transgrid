@@ -53,10 +53,10 @@
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><h6 class="dropdown-header">Update Period</h6></li>
-                            <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('updatePeriodSelect').value='1'; updateData();">1 minute</a></li>
-                            <li><a class="dropdown-item active" href="#" onclick="event.preventDefault(); document.getElementById('updatePeriodSelect').value='10'; updateData();">10 minutes (default)</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('updatePeriodSelect').value='60'; updateData();">1 hour</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('updatePeriodSelect').value='240'; updateData();">4 hours</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="setPeriodAndUpdate(1)">1 minute</a></li>
+                            <li><a class="dropdown-item active" href="#" onclick="setPeriodAndUpdate(10)">10 minutes (default)</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="setPeriodAndUpdate(60)">1 hour</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="setPeriodAndUpdate(240)">4 hours</a></li>
                         </ul>
                         <select id="updatePeriodSelect" class="d-none">
                             <option value="1">1m</option>

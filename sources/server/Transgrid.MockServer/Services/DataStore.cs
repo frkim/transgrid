@@ -255,6 +255,7 @@ public class DataStore
         {
             var random = new Random();
             var now = DateTime.UtcNow;
+            const double MaxDiscountChangePercent = 0.05;
             
             // Update Train Plans
             foreach (var plan in _trainPlans)
@@ -312,7 +313,7 @@ public class DataStore
                 {
                     if (random.Next(100) < 20)
                     {
-                        var change = (random.NextDouble() * 0.1) - 0.05; // -5% to +5%
+                        var change = (random.NextDouble() * 2 * MaxDiscountChangePercent) - MaxDiscountChangePercent;
                         rate.Discounts[key] = Math.Max(0, Math.Min(100, rate.Discounts[key] + change));
                     }
                 }
@@ -354,13 +355,9 @@ public class DataStore
         // Parse time string (format: HH:mm)
         if (TimeSpan.TryParse(timeString, out var time))
         {
-            var newTime = time.Add(TimeSpan.FromMinutes(minutesToAdd));
-            // Handle day overflow (wrap around to 0)
-            while (newTime.TotalHours >= 24)
-            {
-                newTime = newTime.Subtract(TimeSpan.FromHours(24));
-            }
-            return newTime.ToString(@"hh\:mm");
+            var totalMinutes = (int)((time.TotalMinutes + minutesToAdd) % (24 * 60));
+            if (totalMinutes < 0) totalMinutes += 24 * 60;
+            return TimeSpan.FromMinutes(totalMinutes).ToString(@"hh\:mm");
         }
         return timeString;
     }
