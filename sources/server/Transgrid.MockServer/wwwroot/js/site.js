@@ -60,14 +60,29 @@ function showNotification(type, message) {
     toast.setAttribute('aria-live', 'assertive');
     toast.setAttribute('aria-atomic', 'true');
     
-    toast.innerHTML = `
-        <div class="d-flex">
-            <div class="toast-body">
-                <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${message}
-            </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-    `;
+    // Build the toast content safely without using innerHTML for dynamic text
+    const wrapper = document.createElement('div');
+    wrapper.className = 'd-flex';
+    
+    const body = document.createElement('div');
+    body.className = 'toast-body';
+    
+    const icon = document.createElement('i');
+    icon.classList.add('bi');
+    icon.classList.add(type === 'success' ? 'bi-check-circle' : 'bi-exclamation-circle');
+    body.appendChild(icon);
+    
+    // Add a space and the message text safely using textContent
+    body.appendChild(document.createTextNode(' ' + message));
+    
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'btn-close btn-close-white me-2 m-auto';
+    closeButton.setAttribute('data-bs-dismiss', 'toast');
+    
+    wrapper.appendChild(body);
+    wrapper.appendChild(closeButton);
+    toast.appendChild(wrapper);
     
     toastContainer.appendChild(toast);
     const bsToast = new bootstrap.Toast(toast);

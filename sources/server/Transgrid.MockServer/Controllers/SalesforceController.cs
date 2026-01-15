@@ -33,8 +33,18 @@ public class SalesforceController : ControllerBase
     }
 
     [HttpPost]
-    public ActionResult<NegotiatedRate> Create([FromBody] NegotiatedRate rate)
+    public ActionResult<NegotiatedRate> Create([FromBody] NegotiatedRate? rate)
     {
+        if (rate == null)
+        {
+            return BadRequest("Negotiated rate data is required");
+        }
+        
+        if (string.IsNullOrWhiteSpace(rate.UniqueCode))
+        {
+            return BadRequest("Unique code is required");
+        }
+        
         rate.Id = Guid.NewGuid().ToString();
         rate.CreatedAt = DateTime.UtcNow;
         _dataStore.AddNegotiatedRate(rate);
@@ -42,14 +52,25 @@ public class SalesforceController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public ActionResult Update(string id, [FromBody] NegotiatedRate rate)
+    public ActionResult Update(string id, [FromBody] NegotiatedRate? rate)
     {
+        if (rate == null)
+        {
+            return BadRequest("Negotiated rate data is required");
+        }
+        
+        if (string.IsNullOrWhiteSpace(rate.UniqueCode))
+        {
+            return BadRequest("Unique code is required");
+        }
+        
         var existing = _dataStore.GetNegotiatedRate(id);
         if (existing == null)
         {
             return NotFound();
         }
         rate.Id = id;
+        rate.CreatedAt = existing.CreatedAt;
         _dataStore.UpdateNegotiatedRate(rate);
         return NoContent();
     }

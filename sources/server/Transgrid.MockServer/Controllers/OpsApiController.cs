@@ -33,8 +33,18 @@ public class OpsApiController : ControllerBase
     }
 
     [HttpPost]
-    public ActionResult<TrainPlan> Create([FromBody] TrainPlan plan)
+    public ActionResult<TrainPlan> Create([FromBody] TrainPlan? plan)
     {
+        if (plan == null)
+        {
+            return BadRequest("Train plan data is required");
+        }
+        
+        if (string.IsNullOrWhiteSpace(plan.ServiceCode))
+        {
+            return BadRequest("Service code is required");
+        }
+        
         plan.Id = Guid.NewGuid().ToString();
         plan.CreatedAt = DateTime.UtcNow;
         _dataStore.AddTrainPlan(plan);
@@ -42,14 +52,25 @@ public class OpsApiController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public ActionResult Update(string id, [FromBody] TrainPlan plan)
+    public ActionResult Update(string id, [FromBody] TrainPlan? plan)
     {
+        if (plan == null)
+        {
+            return BadRequest("Train plan data is required");
+        }
+        
+        if (string.IsNullOrWhiteSpace(plan.ServiceCode))
+        {
+            return BadRequest("Service code is required");
+        }
+        
         var existing = _dataStore.GetTrainPlan(id);
         if (existing == null)
         {
             return NotFound();
         }
         plan.Id = id;
+        plan.CreatedAt = existing.CreatedAt;
         _dataStore.UpdateTrainPlan(plan);
         return NoContent();
     }

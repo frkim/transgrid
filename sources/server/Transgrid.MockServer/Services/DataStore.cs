@@ -5,13 +5,19 @@ namespace Transgrid.MockServer.Services;
 public class DataStore
 {
     private readonly object _lock = new();
-    private List<TrainPlan> _trainPlans = new();
-    private List<NegotiatedRate> _negotiatedRates = new();
-    private List<CifSchedule> _cifSchedules = new();
+    private readonly List<TrainPlan> _trainPlans = new();
+    private readonly List<NegotiatedRate> _negotiatedRates = new();
+    private readonly List<CifSchedule> _cifSchedules = new();
+    
+    // Store baseline data for true reset functionality
+    private List<TrainPlan> _baselineTrainPlans = new();
+    private List<NegotiatedRate> _baselineNegotiatedRates = new();
+    private List<CifSchedule> _baselineCifSchedules = new();
 
     public DataStore()
     {
         GenerateBaselineData();
+        SaveBaseline();
     }
 
     // Train Plans
@@ -161,7 +167,7 @@ public class DataStore
         }
     }
 
-    // Reset to Baseline
+    // Reset to Baseline - restores the original baseline dataset
     public void ResetToBaseline()
     {
         lock (_lock)
@@ -169,7 +175,86 @@ public class DataStore
             _trainPlans.Clear();
             _negotiatedRates.Clear();
             _cifSchedules.Clear();
-            GenerateBaselineData();
+            
+            // Deep copy baseline data back to active collections
+            foreach (var plan in _baselineTrainPlans)
+            {
+                _trainPlans.Add(new TrainPlan
+                {
+                    Id = plan.Id,
+                    ServiceCode = plan.ServiceCode,
+                    Pathway = plan.Pathway,
+                    TravelDate = plan.TravelDate,
+                    PassagePoints = new List<string>(plan.PassagePoints),
+                    Origin = plan.Origin,
+                    Destination = plan.Destination,
+                    Status = plan.Status,
+                    PlanType = plan.PlanType,
+                    Country = plan.Country,
+                    CreatedAt = plan.CreatedAt
+                });
+            }
+            
+            foreach (var rate in _baselineNegotiatedRates)
+            {
+                _negotiatedRates.Add(new NegotiatedRate
+                {
+                    Id = rate.Id,
+                    AccountManager = rate.AccountManager,
+                    AccountName = rate.AccountName,
+                    UniqueCode = rate.UniqueCode,
+                    CodeRecordType = rate.CodeRecordType,
+                    GdsUsed = rate.GdsUsed,
+                    Pcc = rate.Pcc,
+                    Distributor = rate.Distributor,
+                    Road = rate.Road,
+                    TariffCodes = new List<string>(rate.TariffCodes),
+                    Discounts = new Dictionary<string, double>(rate.Discounts),
+                    Priority = rate.Priority,
+                    ActionType = rate.ActionType,
+                    ExtractRequested = rate.ExtractRequested,
+                    B2bStatus = rate.B2bStatus,
+                    B2bExtractDate = rate.B2bExtractDate,
+                    CreatedAt = rate.CreatedAt
+                });
+            }
+            
+            foreach (var schedule in _baselineCifSchedules)
+            {
+                _cifSchedules.Add(new CifSchedule
+                {
+                    Id = schedule.Id,
+                    TrainServiceNumber = schedule.TrainServiceNumber,
+                    TravelDate = schedule.TravelDate,
+                    CifStpIndicator = schedule.CifStpIndicator,
+                    ScheduleLocations = schedule.ScheduleLocations.Select(loc => new ScheduleLocation
+                    {
+                        LocationCode = loc.LocationCode,
+                        LocationName = loc.LocationName,
+                        ScheduledArrivalTime = loc.ScheduledArrivalTime,
+                        ScheduledDepartureTime = loc.ScheduledDepartureTime,
+                        Platform = loc.Platform,
+                        Activity = loc.Activity
+                    }).ToList(),
+                    TrainCategory = schedule.TrainCategory,
+                    PowerType = schedule.PowerType,
+                    TrainClass = schedule.TrainClass,
+                    Operator = schedule.Operator,
+                    ValidFrom = schedule.ValidFrom,
+                    ValidTo = schedule.ValidTo,
+                    CreatedAt = schedule.CreatedAt
+                });
+            }
+        }
+    }
+    
+    private void SaveBaseline()
+    {
+        lock (_lock)
+        {
+            _baselineTrainPlans = new List<TrainPlan>(_trainPlans);
+            _baselineNegotiatedRates = new List<NegotiatedRate>(_negotiatedRates);
+            _baselineCifSchedules = new List<CifSchedule>(_cifSchedules);
         }
     }
 
@@ -298,8 +383,8 @@ public class DataStore
             for (int j = 0; j < selectedStations.Count; j++)
             {
                 var (code, name) = selectedStations[j];
-                var arrivalTime = j == 0 ? "" : baseTime.AddMinutes(j * 45).ToString("HH:mm");
-                var departureTime = j == selectedStations.Count - 1 ? "" : baseTime.AddMinutes(j * 45 + 2).ToString("HH:mm");
+                var arrivalTime = j == 0 ? "" : baseTime.AddMinutes(j * 45.0).ToString("HH:mm");
+                var departureTime = j == selectedStations.Count - 1 ? "" : baseTime.AddMinutes(j * 45.0 + 2).ToString("HH:mm");
 
                 scheduleLocations.Add(new ScheduleLocation
                 {

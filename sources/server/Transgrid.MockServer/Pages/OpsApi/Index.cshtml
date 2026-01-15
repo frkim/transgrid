@@ -99,6 +99,13 @@
     let sortColumn = 'serviceCode';
     let sortDirection = 'asc';
     
+    // HTML escape function to prevent XSS
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
     async function loadData() {
         try {
             const response = await fetch('/api/OpsApi');
@@ -153,15 +160,15 @@
             
             return `
                 <tr>
-                    <td><strong>${item.serviceCode}</strong></td>
-                    <td><span class="badge bg-info">${item.pathway}</span></td>
-                    <td>${travelDate}</td>
-                    <td>${item.origin}</td>
-                    <td>${item.destination}</td>
+                    <td><strong>${escapeHtml(item.serviceCode)}</strong></td>
+                    <td><span class="badge bg-info">${escapeHtml(item.pathway)}</span></td>
+                    <td>${escapeHtml(travelDate)}</td>
+                    <td>${escapeHtml(item.origin)}</td>
+                    <td>${escapeHtml(item.destination)}</td>
                     <td>${statusBadge}</td>
-                    <td><span class="badge bg-secondary">${item.country}</span></td>
+                    <td><span class="badge bg-secondary">${escapeHtml(item.country)}</span></td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary" onclick="viewDetails('${item.id}')">
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewDetails('${escapeHtml(item.id)}')">
                             <i class="bi bi-eye"></i> View
                         </button>
                     </td>

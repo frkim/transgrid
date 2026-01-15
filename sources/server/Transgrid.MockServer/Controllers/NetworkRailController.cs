@@ -33,8 +33,18 @@ public class NetworkRailController : ControllerBase
     }
 
     [HttpPost]
-    public ActionResult<CifSchedule> Create([FromBody] CifSchedule schedule)
+    public ActionResult<CifSchedule> Create([FromBody] CifSchedule? schedule)
     {
+        if (schedule == null)
+        {
+            return BadRequest("CIF schedule data is required");
+        }
+        
+        if (string.IsNullOrWhiteSpace(schedule.TrainServiceNumber))
+        {
+            return BadRequest("Train service number is required");
+        }
+        
         schedule.Id = Guid.NewGuid().ToString();
         schedule.CreatedAt = DateTime.UtcNow;
         _dataStore.AddCifSchedule(schedule);
@@ -42,14 +52,25 @@ public class NetworkRailController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public ActionResult Update(string id, [FromBody] CifSchedule schedule)
+    public ActionResult Update(string id, [FromBody] CifSchedule? schedule)
     {
+        if (schedule == null)
+        {
+            return BadRequest("CIF schedule data is required");
+        }
+        
+        if (string.IsNullOrWhiteSpace(schedule.TrainServiceNumber))
+        {
+            return BadRequest("Train service number is required");
+        }
+        
         var existing = _dataStore.GetCifSchedule(id);
         if (existing == null)
         {
             return NotFound();
         }
         schedule.Id = id;
+        schedule.CreatedAt = existing.CreatedAt;
         _dataStore.UpdateCifSchedule(schedule);
         return NoContent();
     }

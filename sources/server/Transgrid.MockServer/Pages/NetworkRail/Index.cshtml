@@ -94,6 +94,13 @@
     let sortColumn = 'trainServiceNumber';
     let sortDirection = 'asc';
     
+    // HTML escape function to prevent XSS
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
     async function loadData() {
         try {
             const response = await fetch('/api/NetworkRail');
@@ -147,14 +154,14 @@
             
             return `
                 <tr>
-                    <td><strong>${item.trainServiceNumber}</strong></td>
-                    <td>${travelDate}</td>
-                    <td>${item.operator}</td>
-                    <td><span class="badge bg-info">${item.trainClass}</span></td>
-                    <td><span class="badge bg-secondary">${item.powerType}</span></td>
+                    <td><strong>${escapeHtml(item.trainServiceNumber)}</strong></td>
+                    <td>${escapeHtml(travelDate)}</td>
+                    <td>${escapeHtml(item.operator)}</td>
+                    <td><span class="badge bg-info">${escapeHtml(item.trainClass)}</span></td>
+                    <td><span class="badge bg-secondary">${escapeHtml(item.powerType)}</span></td>
                     <td><span class="badge bg-primary">${locationCount} stops</span></td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary" onclick="viewDetails('${item.id}')">
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewDetails('${escapeHtml(item.id)}')">
                             <i class="bi bi-eye"></i> View
                         </button>
                     </td>

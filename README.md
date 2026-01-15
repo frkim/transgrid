@@ -19,6 +19,6 @@ cd sources/server/Transgrid.MockServer
 dotnet run
 ```
 
-Then open http://localhost:5000 in your browser.
+Then open http://localhost:5240 in your browser.
 
 See [sources/server/README.md](sources/server/README.md) for detailed documentation.

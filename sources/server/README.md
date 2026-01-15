@@ -84,12 +84,12 @@ dotnet run
 
 3. Open your browser and navigate to:
 ```
-http://localhost:5000
+http://localhost:5240
 ```
 
 Or for HTTPS:
 ```
-https://localhost:5001
+https://localhost:7133
 ```
 
 ### Building the Project
@@ -197,16 +197,16 @@ Example API calls using curl:
 
 ```bash
 # Get all train plans
-curl http://localhost:5000/api/OpsApi
+curl http://localhost:5240/api/OpsApi
 
 # Get a specific train plan
-curl http://localhost:5000/api/OpsApi/{id}
+curl http://localhost:5240/api/OpsApi/{id}
 
 # Generate new data
-curl -X POST http://localhost:5000/api/DataManagement/generate
+curl -X POST http://localhost:5240/api/DataManagement/generate
 
 # Reset to baseline
-curl -X POST http://localhost:5000/api/DataManagement/reset
+curl -X POST http://localhost:5240/api/DataManagement/reset
 ```
 
 ## Development
