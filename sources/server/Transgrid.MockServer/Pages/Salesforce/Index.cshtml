@@ -1,0 +1,305 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Salesforce - Negotiated Rates";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="gradient-text">
+        <i class="bi bi-briefcase"></i> Salesforce - Negotiated Rates
+    </h1>
+</div>
+
+<div class="card shadow-lg mb-4">
+    <div class="card-header bg-gradient text-white">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <i class="bi bi-search"></i> Search & Filter
+            </div>
+            <div class="col-md-4 text-end">
+                <span id="record-count" class="badge bg-light text-dark">0 records</span>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-funnel"></i></span>
+            <input type="text" id="searchBox" class="form-control" placeholder="Search by account name, unique code, code type, GDS, distributor...">
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-lg">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped" id="dataTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="sortable" data-column="accountName">
+                            Account Name <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-column="uniqueCode">
+                            Unique Code <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-column="codeRecordType">
+                            Type <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-column="road">
+                            Road <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-column="priority">
+                            Priority <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-column="b2bStatus">
+                            Status <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr>
+                        <td colspan="7" class="text-center">
+                            <div class="spinner-border text-success" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-info-circle"></i> Negotiated Rate Details
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detailContent">
+                <!-- Content will be populated dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    let allData = [];
+    let sortColumn = 'accountName';
+    let sortDirection = 'asc';
+    
+    async function loadData() {
+        try {
+            const response = await fetch('/api/Salesforce');
+            allData = await response.json();
+            renderTable();
+        } catch (error) {
+            console.error('Error loading data:', error);
+            document.getElementById('tableBody').innerHTML = 
+                '<tr><td colspan="7" class="text-center text-danger">Error loading data</td></tr>';
+        }
+    }
+    
+    function renderTable() {
+        const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+        let filteredData = allData.filter(item => {
+            return (
+                item.accountName.toLowerCase().includes(searchTerm) ||
+                item.accountManager.toLowerCase().includes(searchTerm) ||
+                item.uniqueCode.toLowerCase().includes(searchTerm) ||
+                item.codeRecordType.toLowerCase().includes(searchTerm) ||
+                (item.gdsUsed && item.gdsUsed.toLowerCase().includes(searchTerm)) ||
+                (item.distributor && item.distributor.toLowerCase().includes(searchTerm)) ||
+                item.road.toLowerCase().includes(searchTerm)
+            );
+        });
+        
+        // Sort data
+        filteredData.sort((a, b) => {
+            let aVal = a[sortColumn] || '';
+            let bVal = b[sortColumn] || '';
+            
+            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+        
+        document.getElementById('record-count').textContent = `${filteredData.length} records`;
+        
+        const tbody = document.getElementById('tableBody');
+        if (filteredData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No records found</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = filteredData.map(item => {
+            const statusBadge = getStatusBadge(item.b2bStatus);
+            const priorityBadge = item.priority === 'Priority' 
+                ? '<span class="badge bg-danger">Priority</span>' 
+                : '<span class="badge bg-secondary">Normal</span>';
+            
+            return `
+                <tr>
+                    <td><strong>${item.accountName}</strong><br><small class="text-muted">${item.accountManager}</small></td>
+                    <td><code>${item.uniqueCode}</code></td>
+                    <td><span class="badge bg-info text-wrap text-start">${item.codeRecordType}</span></td>
+                    <td>${item.road}</td>
+                    <td>${priorityBadge}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewDetails('${item.id}')">
+                            <i class="bi bi-eye"></i> View
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+    
+    function getStatusBadge(status) {
+        const badges = {
+            'Pending': '<span class="badge bg-warning text-dark">Pending</span>',
+            'Extracted': '<span class="badge bg-success">Extracted</span>',
+            'Failed': '<span class="badge bg-danger">Failed</span>'
+        };
+        return badges[status] || `<span class="badge bg-secondary">${status}</span>`;
+    }
+    
+    function viewDetails(id) {
+        const item = allData.find(x => x.id === id);
+        if (!item) return;
+        
+        const tariffCodes = item.tariffCodes.length > 0 
+            ? item.tariffCodes.map(t => `<span class="badge bg-primary me-1">${t}</span>`).join('')
+            : '<span class="text-muted">None</span>';
+        
+        const discounts = Object.keys(item.discounts).length > 0
+            ? Object.entries(item.discounts).map(([key, value]) => 
+                `<tr><td><code>${key}</code></td><td><strong>${value}%</strong></td></tr>`
+              ).join('')
+            : '<tr><td colspan="2" class="text-muted">No discounts</td></tr>';
+        
+        const extractDate = item.b2bExtractDate 
+            ? new Date(item.b2bExtractDate).toLocaleString()
+            : '<span class="text-muted">Not extracted yet</span>';
+        
+        document.getElementById('detailContent').innerHTML = `
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Account Name:</label>
+                    <p>${item.accountName}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Account Manager:</label>
+                    <p>${item.accountManager}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Unique Code:</label>
+                    <p><code>${item.uniqueCode}</code></p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Code Record Type:</label>
+                    <p><span class="badge bg-info">${item.codeRecordType}</span></p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Road:</label>
+                    <p>${item.road}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Priority:</label>
+                    <p>${item.priority === 'Priority' ? '<span class="badge bg-danger">Priority</span>' : '<span class="badge bg-secondary">Normal</span>'}</p>
+                </div>
+                ${item.gdsUsed ? `
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">GDS Used:</label>
+                    <p><span class="badge bg-primary">${item.gdsUsed}</span></p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">PCC:</label>
+                    <p><code>${item.pcc}</code></p>
+                </div>
+                ` : ''}
+                ${item.distributor ? `
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Distributor:</label>
+                    <p>${item.distributor}</p>
+                </div>
+                ` : ''}
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Action Type:</label>
+                    <p><span class="badge bg-dark">${item.actionType}</span></p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">B2B Status:</label>
+                    <p>${getStatusBadge(item.b2bStatus)}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Extract Requested:</label>
+                    <p>${item.extractRequested ? '<span class="badge bg-success">Yes</span>' : '<span class="badge bg-secondary">No</span>'}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Extract Date:</label>
+                    <p>${extractDate}</p>
+                </div>
+                <div class="col-12 mb-3">
+                    <label class="fw-bold">Tariff Codes:</label>
+                    <p>${tariffCodes}</p>
+                </div>
+                <div class="col-12 mb-3">
+                    <label class="fw-bold">Discounts:</label>
+                    <table class="table table-sm table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Tariff Code</th>
+                                <th>Discount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${discounts}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="col-12 mb-3">
+                    <label class="fw-bold">Created At:</label>
+                    <p>${new Date(item.createdAt).toLocaleString()}</p>
+                </div>
+            </div>
+        `;
+        
+        new bootstrap.Modal(document.getElementById('detailModal')).show();
+    }
+    
+    // Event listeners
+    document.getElementById('searchBox').addEventListener('input', renderTable);
+    
+    document.querySelectorAll('.sortable').forEach(th => {
+        th.addEventListener('click', function() {
+            const column = this.dataset.column;
+            if (sortColumn === column) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = column;
+                sortDirection = 'asc';
+            }
+            
+            // Update sort indicators
+            document.querySelectorAll('.sortable i').forEach(i => {
+                i.className = 'bi bi-arrow-down-up';
+            });
+            this.querySelector('i').className = sortDirection === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
+            
+            renderTable();
+        });
+    });
+    
+    loadData();
+</script>
+}

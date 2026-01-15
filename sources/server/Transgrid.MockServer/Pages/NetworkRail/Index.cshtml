@@ -1,0 +1,273 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Network Rail - CIF Schedules";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="gradient-text">
+        <i class="bi bi-diagram-3"></i> Network Rail - CIF Schedules
+    </h1>
+</div>
+
+<div class="card shadow-lg mb-4">
+    <div class="card-header bg-gradient text-white">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <i class="bi bi-search"></i> Search & Filter
+            </div>
+            <div class="col-md-4 text-end">
+                <span id="record-count" class="badge bg-light text-dark">0 records</span>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-funnel"></i></span>
+            <input type="text" id="searchBox" class="form-control" placeholder="Search by train service number, operator, train class...">
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-lg">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped" id="dataTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="sortable" data-column="trainServiceNumber">
+                            Service Number <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-column="travelDate">
+                            Travel Date <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-column="operator">
+                            Operator <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-column="trainClass">
+                            Class <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th class="sortable" data-column="powerType">
+                            Power Type <i class="bi bi-arrow-down-up"></i>
+                        </th>
+                        <th>Locations</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr>
+                        <td colspan="7" class="text-center">
+                            <div class="spinner-border text-warning" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-info-circle"></i> CIF Schedule Details
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detailContent">
+                <!-- Content will be populated dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    let allData = [];
+    let sortColumn = 'trainServiceNumber';
+    let sortDirection = 'asc';
+    
+    async function loadData() {
+        try {
+            const response = await fetch('/api/NetworkRail');
+            allData = await response.json();
+            renderTable();
+        } catch (error) {
+            console.error('Error loading data:', error);
+            document.getElementById('tableBody').innerHTML = 
+                '<tr><td colspan="7" class="text-center text-danger">Error loading data</td></tr>';
+        }
+    }
+    
+    function renderTable() {
+        const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+        let filteredData = allData.filter(item => {
+            return (
+                item.trainServiceNumber.toLowerCase().includes(searchTerm) ||
+                item.operator.toLowerCase().includes(searchTerm) ||
+                item.trainClass.toLowerCase().includes(searchTerm) ||
+                item.powerType.toLowerCase().includes(searchTerm) ||
+                item.trainCategory.toLowerCase().includes(searchTerm)
+            );
+        });
+        
+        // Sort data
+        filteredData.sort((a, b) => {
+            let aVal = a[sortColumn] || '';
+            let bVal = b[sortColumn] || '';
+            
+            if (sortColumn === 'travelDate') {
+                aVal = new Date(aVal);
+                bVal = new Date(bVal);
+            }
+            
+            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+        
+        document.getElementById('record-count').textContent = `${filteredData.length} records`;
+        
+        const tbody = document.getElementById('tableBody');
+        if (filteredData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No records found</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = filteredData.map(item => {
+            const travelDate = new Date(item.travelDate).toLocaleDateString();
+            const locationCount = item.scheduleLocations.length;
+            
+            return `
+                <tr>
+                    <td><strong>${item.trainServiceNumber}</strong></td>
+                    <td>${travelDate}</td>
+                    <td>${item.operator}</td>
+                    <td><span class="badge bg-info">${item.trainClass}</span></td>
+                    <td><span class="badge bg-secondary">${item.powerType}</span></td>
+                    <td><span class="badge bg-primary">${locationCount} stops</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewDetails('${item.id}')">
+                            <i class="bi bi-eye"></i> View
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+    
+    function viewDetails(id) {
+        const item = allData.find(x => x.id === id);
+        if (!item) return;
+        
+        const scheduleLocations = item.scheduleLocations.map((loc, idx) => `
+            <tr>
+                <td>${idx + 1}</td>
+                <td><strong>${loc.locationName}</strong><br><small class="text-muted">${loc.locationCode}</small></td>
+                <td>${loc.scheduledArrivalTime || '<span class="text-muted">—</span>'}</td>
+                <td>${loc.scheduledDepartureTime || '<span class="text-muted">—</span>'}</td>
+                <td>${loc.platform}</td>
+                <td><span class="badge bg-secondary">${loc.activity}</span></td>
+            </tr>
+        `).join('');
+        
+        document.getElementById('detailContent').innerHTML = `
+            <div class="row mb-4">
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Train Service Number:</label>
+                    <p><strong>${item.trainServiceNumber}</strong></p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Travel Date:</label>
+                    <p>${new Date(item.travelDate).toLocaleString()}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Operator:</label>
+                    <p>${item.operator}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Train Class:</label>
+                    <p><span class="badge bg-info">${item.trainClass}</span></p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Power Type:</label>
+                    <p><span class="badge bg-secondary">${item.powerType}</span></p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Train Category:</label>
+                    <p><span class="badge bg-dark">${item.trainCategory}</span></p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">CIF STP Indicator:</label>
+                    <p><code>${item.cifStpIndicator}</code></p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="fw-bold">Valid Period:</label>
+                    <p>${new Date(item.validFrom).toLocaleDateString()} - ${new Date(item.validTo).toLocaleDateString()}</p>
+                </div>
+                <div class="col-12 mb-3">
+                    <label class="fw-bold">Created At:</label>
+                    <p>${new Date(item.createdAt).toLocaleString()}</p>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-12">
+                    <h5 class="mb-3"><i class="bi bi-geo-alt"></i> Schedule Locations (${item.scheduleLocations.length} stops)</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Location</th>
+                                    <th>Arrival</th>
+                                    <th>Departure</th>
+                                    <th>Platform</th>
+                                    <th>Activity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${scheduleLocations}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        new bootstrap.Modal(document.getElementById('detailModal')).show();
+    }
+    
+    // Event listeners
+    document.getElementById('searchBox').addEventListener('input', renderTable);
+    
+    document.querySelectorAll('.sortable').forEach(th => {
+        th.addEventListener('click', function() {
+            const column = this.dataset.column;
+            if (sortColumn === column) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = column;
+                sortDirection = 'asc';
+            }
+            
+            // Update sort indicators
+            document.querySelectorAll('.sortable i').forEach(i => {
+                i.className = 'bi bi-arrow-down-up';
+            });
+            this.querySelector('i').className = sortDirection === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
+            
+            renderTable();
+        });
+    });
+    
+    loadData();
+</script>
+}
