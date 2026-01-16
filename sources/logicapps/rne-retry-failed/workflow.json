@@ -67,7 +67,7 @@
         "type": "ServiceProvider",
         "inputs": {
           "serviceProviderConfiguration": {
-            "connectionName": "AzureTableStorage",
+            "connectionName": "AzureTables",
             "operationId": "queryEntities",
             "serviceProviderId": "/serviceProviders/AzureTables"
           },
