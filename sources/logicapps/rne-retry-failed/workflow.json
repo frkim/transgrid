@@ -69,7 +69,7 @@
           "serviceProviderConfiguration": {
             "connectionName": "AzureTableStorage",
             "operationId": "queryEntities",
-            "serviceProviderId": "/serviceProviders/AzureTable"
+            "serviceProviderId": "/serviceProviders/AzureTables"
           },
           "parameters": {
             "tableName": "FailedExports",
@@ -83,7 +83,7 @@
           "type": "exponential",
           "count": 3,
           "interval": "PT5S",
-          "minimumInterval": "PT2S",
+          "minimumInterval": "PT5S",
           "maximumInterval": "PT30S"
         }
       },
@@ -134,7 +134,7 @@
                 "type": "exponential",
                 "count": 3,
                 "interval": "PT5S",
-                "minimumInterval": "PT2S",
+                "minimumInterval": "PT5S",
                 "maximumInterval": "PT30S"
               }
             },
@@ -190,7 +190,7 @@
                 "type": "exponential",
                 "count": 3,
                 "interval": "PT5S",
-                "minimumInterval": "PT2S",
+                "minimumInterval": "PT5S",
                 "maximumInterval": "PT30S"
               }
             },
@@ -223,7 +223,7 @@
                   "type": "exponential",
                   "count": 3,
                   "interval": "PT5S",
-                  "minimumInterval": "PT2S",
+                  "minimumInterval": "PT5S",
                   "maximumInterval": "PT30S"
                 }
               },
@@ -257,7 +257,7 @@
                   "serviceProviderConfiguration": {
                     "connectionName": "AzureTableStorage",
                     "operationId": "deleteEntity",
-                    "serviceProviderId": "/serviceProviders/AzureTable"
+                    "serviceProviderId": "/serviceProviders/AzureTables"
                   },
                   "parameters": {
                     "tableName": "FailedExports",
@@ -283,7 +283,7 @@
                   "serviceProviderConfiguration": {
                     "connectionName": "AzureTableStorage",
                     "operationId": "updateEntity",
-                    "serviceProviderId": "/serviceProviders/AzureTable"
+                    "serviceProviderId": "/serviceProviders/AzureTables"
                   },
                   "parameters": {
                     "tableName": "FailedExports",
