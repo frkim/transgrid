@@ -1,6 +1,7 @@
 ---
 applyTo: '**/*.cs'
 ---
+<!-- markdownlint-disable MD024 -->
 
 # .NET Development Best Practices and Guidelines
 
