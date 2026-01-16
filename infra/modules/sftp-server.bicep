@@ -31,6 +31,9 @@ param storageAccountKey string
 @description('Allowed IP addresses for SFTP access (CIDR notation)')
 param allowedIpRanges array = []
 
+@description('External port for SFTP access')
+param externalPort int = 22
+
 @description('CPU cores for the container')
 param cpuCores string = '0.5'
 
@@ -75,7 +78,7 @@ resource sftpContainerApp 'Microsoft.App/containerApps@2023-11-02-preview' = {
         external: true
         targetPort: 22
         transport: 'tcp'
-        exposedPort: 22
+        exposedPort: externalPort
         ipSecurityRestrictions: [for (ip, i) in allowedIpRanges: {
           name: 'allow-rule-${i}'
           description: 'Allow access from ${ip}'
@@ -151,4 +154,4 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-11-02-
 output containerAppId string = sftpContainerApp.id
 output containerAppName string = sftpContainerApp.name
 output containerAppFqdn string = sftpContainerApp.properties.configuration.ingress.fqdn
-output sftpEndpoint string = '${sftpContainerApp.properties.configuration.ingress.fqdn}:22'
+output sftpEndpoint string = '${sftpContainerApp.properties.configuration.ingress.fqdn}:${externalPort}'

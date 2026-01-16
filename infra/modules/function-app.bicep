@@ -68,7 +68,6 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
     httpsOnly: true
     publicNetworkAccess: 'Enabled'
     siteConfig: {
-      linuxFxVersion: 'DOTNET-ISOLATED|8.0'
       use32BitWorkerProcess: false
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
@@ -85,24 +84,8 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           value: '~4'
         }
         {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'dotnet-isolated'
-        }
-        {
           name: 'AzureWebJobsStorage'
           value: storageConnectionString
-        }
-        {
-          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-          value: storageConnectionString
-        }
-        {
-          name: 'WEBSITE_CONTENTSHARE'
-          value: toLower(functionAppFullName)
-        }
-        {
-          name: 'WEBSITE_RUN_FROM_PACKAGE'
-          value: '1'
         }
         {
           name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -116,10 +99,6 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'OPS_API_ENDPOINT'
           value: opsApiEndpoint
         }
-        {
-          name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
-          value: 'false'
-        }
       ]
     }
     // Function App Config for Flex Consumption
@@ -127,7 +106,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
       deployment: {
         storage: {
           type: 'blobContainer'
-          value: '${storageConnectionString};ContainerName=function-releases'
+          value: 'https://${storageAccountName}.blob.${az.environment().suffixes.storage}/function-releases'
           authentication: {
             type: 'StorageAccountConnectionString'
             storageAccountConnectionStringName: 'AzureWebJobsStorage'
@@ -143,26 +122,6 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         version: '8.0'
       }
     }
-  }
-}
-
-// Diagnostic settings for Application Insights monitoring
-resource functionAppDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(appInsightsConnectionString)) {
-  name: 'AppInsights'
-  scope: functionApp
-  properties: {
-    logs: [
-      {
-        category: 'FunctionAppLogs'
-        enabled: true
-      }
-    ]
-    metrics: [
-      {
-        category: 'AllMetrics'
-        enabled: true
-      }
-    ]
   }
 }
 

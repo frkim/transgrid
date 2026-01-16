@@ -159,31 +159,6 @@ resource logicApp 'Microsoft.Web/sites@2023-12-01' = {
   }
 }
 
-// Diagnostic settings for Application Insights
-resource logicAppDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(appInsightsConnectionString)) {
-  name: 'AppInsights'
-  scope: logicApp
-  properties: {
-    logs: [
-      {
-        category: 'WorkflowRuntime'
-        enabled: true
-      }
-      {
-        category: 'FunctionAppLogs'
-        enabled: true
-      }
-    ]
-    metrics: [
-      {
-        category: 'AllMetrics'
-        enabled: true
-      }
-    ]
-    workspaceId: null
-  }
-}
-
 // Outputs
 output logicAppId string = logicApp.id
 output logicAppName string = logicApp.name

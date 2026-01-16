@@ -115,6 +115,14 @@ resource rneExportContainer 'Microsoft.Storage/storageAccounts/blobServices/cont
   }
 }
 
+resource functionReleasesContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'function-releases'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
 // Table Storage for failed exports
 resource tableService 'Microsoft.Storage/storageAccounts/tableServices@2023-05-01' = {
   parent: storageAccount
@@ -260,6 +268,7 @@ module sftpBackup 'modules/sftp-server.bicep' = {
     storageAccountName: storageAccount.name
     storageAccountKey: storageAccount.listKeys().keys[0].value
     allowedIpRanges: allowedSftpIpRanges
+    externalPort: 2222
   }
 }
 
