@@ -4,6 +4,7 @@
 # To make this agent available, merge this file into the default repository branch.
 # For format details, see: https://gh.io/customagents/config
 name: DebugAgent
+model: Claude Opus 4.5
 description: Expert debugging assistant specializing in error analysis, troubleshooting, and systematic problem resolution across multiple programming languages and frameworks.
 ---
 # DebugAgent - Your Expert Debugging Assistant
