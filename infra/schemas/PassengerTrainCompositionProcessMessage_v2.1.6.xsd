@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  TAF-JSG PassengerTrainCompositionProcessMessage Schema (Simplified)
+  Version: 2.1.6 (Sample/Placeholder)
+  
+  This is a simplified placeholder schema based on the TAF-TSI specification.
+  For production use, obtain the official schema from:
+  https://www.era.europa.eu/domains/registers/taf-tsi_en
+  
+  Note: This schema is for demonstration purposes only.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:taf="http://taf-jsg.info/schemas"
+           targetNamespace="http://taf-jsg.info/schemas"
+           elementFormDefault="qualified"
+           version="2.1.6">
+  
+  <!-- Root Element -->
+  <xs:element name="PassengerTrainCompositionProcessMessage" type="taf:PassengerTrainCompositionProcessMessageType"/>
+  
+  <!-- Main Message Type -->
+  <xs:complexType name="PassengerTrainCompositionProcessMessageType">
+    <xs:sequence>
+      <xs:element name="MessageHeader" type="taf:MessageHeaderType"/>
+      <xs:element name="TrainInformation" type="taf:TrainInformationType"/>
+      <xs:element name="TrainComposition" type="taf:TrainCompositionType" minOccurs="0"/>
+      <xs:element name="JourneySection" type="taf:JourneySectionType" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="schemaVersion" type="xs:string" fixed="2.1.6"/>
+  </xs:complexType>
+  
+  <!-- Message Header -->
+  <xs:complexType name="MessageHeaderType">
+    <xs:sequence>
+      <xs:element name="MessageIdentifier" type="taf:MessageIdentifierType"/>
+      <xs:element name="MessageDateTime" type="xs:dateTime"/>
+      <xs:element name="Sender" type="taf:CompanyType"/>
+      <xs:element name="Recipient" type="taf:CompanyType" maxOccurs="unbounded"/>
+      <xs:element name="MessageType" type="taf:MessageTypeType"/>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <!-- Message Identifier -->
+  <xs:complexType name="MessageIdentifierType">
+    <xs:sequence>
+      <xs:element name="UUID" type="taf:UUIDType"/>
+      <xs:element name="Version" type="xs:positiveInteger" default="1"/>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <!-- Company Identification -->
+  <xs:complexType name="CompanyType">
+    <xs:sequence>
+      <xs:element name="CompanyCode" type="taf:CompanyCodeType"/>
+      <xs:element name="CompanyName" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <!-- Train Information -->
+  <xs:complexType name="TrainInformationType">
+    <xs:sequence>
+      <xs:element name="OperationalTrainNumber" type="taf:OperationalTrainNumberType"/>
+      <xs:element name="TrainServiceCode" type="xs:string"/>
+      <xs:element name="ScheduledDateOfOperation" type="xs:date"/>
+      <xs:element name="TrainType" type="taf:TrainTypeType"/>
+      <xs:element name="TransportMode" type="taf:TransportModeType"/>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <!-- Operational Train Number -->
+  <xs:complexType name="OperationalTrainNumberType">
+    <xs:sequence>
+      <xs:element name="Core" type="taf:TrainNumberCoreType"/>
+      <xs:element name="Variant" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <!-- Train Composition -->
+  <xs:complexType name="TrainCompositionType">
+    <xs:sequence>
+      <xs:element name="CompositionIdentifier" type="xs:string"/>
+      <xs:element name="TotalLength" type="taf:LengthType" minOccurs="0"/>
+      <xs:element name="TotalWeight" type="taf:WeightType" minOccurs="0"/>
+      <xs:element name="MaxSpeed" type="taf:SpeedType" minOccurs="0"/>
+      <xs:element name="Vehicle" type="taf:VehicleType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <!-- Vehicle Information -->
+  <xs:complexType name="VehicleType">
+    <xs:sequence>
+      <xs:element name="VehicleNumber" type="taf:VehicleNumberType"/>
+      <xs:element name="VehicleType" type="xs:string"/>
+      <xs:element name="PositionInTrain" type="xs:positiveInteger"/>
+      <xs:element name="TractionType" type="taf:TractionTypeType" minOccurs="0"/>
+      <xs:element name="LoadingStatus" type="taf:LoadingStatusType" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <!-- Journey Section -->
+  <xs:complexType name="JourneySectionType">
+    <xs:sequence>
+      <xs:element name="SectionIdentifier" type="xs:string"/>
+      <xs:element name="Origin" type="taf:LocationType"/>
+      <xs:element name="Destination" type="taf:LocationType"/>
+      <xs:element name="PassagePoint" type="taf:PassagePointType" maxOccurs="unbounded"/>
+      <xs:element name="ResponsibleRU" type="taf:CompanyType"/>
+      <xs:element name="ResponsibleIM" type="taf:CompanyType" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <!-- Location Information -->
+  <xs:complexType name="LocationType">
+    <xs:sequence>
+      <xs:element name="LocationPrimaryCode" type="taf:LocationCodeType"/>
+      <xs:element name="LocationSubsidiaryCode" type="xs:string" minOccurs="0"/>
+      <xs:element name="CountryCodeISO" type="taf:CountryCodeType"/>
+      <xs:element name="LocationName" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <!-- Passage Point -->
+  <xs:complexType name="PassagePointType">
+    <xs:sequence>
+      <xs:element name="Location" type="taf:LocationType"/>
+      <xs:element name="TimingAtLocation" type="taf:TimingType"/>
+      <xs:element name="ActivityType" type="taf:ActivityTypeType"/>
+      <xs:element name="Platform" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="sequenceNumber" type="xs:positiveInteger" use="required"/>
+  </xs:complexType>
+  
+  <!-- Timing Information -->
+  <xs:complexType name="TimingType">
+    <xs:sequence>
+      <xs:element name="ScheduledArrivalTime" type="xs:time" minOccurs="0"/>
+      <xs:element name="ScheduledDepartureTime" type="xs:time" minOccurs="0"/>
+      <xs:element name="ScheduledPassTime" type="xs:time" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  
+  <!-- Simple Types -->
+  <xs:simpleType name="UUIDType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"/>
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:simpleType name="CompanyCodeType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[0-9]{4}"/>
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:simpleType name="TrainNumberCoreType">
+    <xs:restriction base="xs:string">
+      <xs:maxLength value="10"/>
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:simpleType name="LocationCodeType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Z0-9]{5,7}"/>
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:simpleType name="CountryCodeType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Z]{2}"/>
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:simpleType name="VehicleNumberType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[0-9]{12}"/>
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:simpleType name="MessageTypeType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="NEW"/>
+      <xs:enumeration value="UPDATE"/>
+      <xs:enumeration value="CANCELLATION"/>
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:simpleType name="TrainTypeType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="PASSENGER"/>
+      <xs:enumeration value="FREIGHT"/>
+      <xs:enumeration value="EMPTY"/>
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:simpleType name="TransportModeType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="HIGH_SPEED"/>
+      <xs:enumeration value="CONVENTIONAL"/>
+      <xs:enumeration value="URBAN"/>
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:simpleType name="TractionTypeType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ELECTRIC"/>
+      <xs:enumeration value="DIESEL"/>
+      <xs:enumeration value="NONE"/>
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:simpleType name="LoadingStatusType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="EMPTY"/>
+      <xs:enumeration value="LOADED"/>
+      <xs:enumeration value="PARTIAL"/>
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:simpleType name="ActivityTypeType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ORIGIN"/>
+      <xs:enumeration value="INTERMEDIATE_STOP"/>
+      <xs:enumeration value="PASS"/>
+      <xs:enumeration value="DESTINATION"/>
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:complexType name="LengthType">
+    <xs:simpleContent>
+      <xs:extension base="xs:decimal">
+        <xs:attribute name="unit" type="xs:string" default="m"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+  
+  <xs:complexType name="WeightType">
+    <xs:simpleContent>
+      <xs:extension base="xs:decimal">
+        <xs:attribute name="unit" type="xs:string" default="t"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+  
+  <xs:complexType name="SpeedType">
+    <xs:simpleContent>
+      <xs:extension base="xs:integer">
+        <xs:attribute name="unit" type="xs:string" default="km/h"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+  
+</xs:schema>

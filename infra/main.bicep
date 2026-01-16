@@ -1,0 +1,323 @@
+// Main Bicep Template for RNE Operational Plans Export Demo
+// Deploys all Azure resources for the integration scenario
+
+targetScope = 'resourceGroup'
+
+@description('Environment name (dev, test, prod)')
+param environment string = 'dev'
+
+@description('Location for all resources')
+param location string = resourceGroup().location
+
+@description('Base name for resources')
+param baseName string = 'transgrid'
+
+@description('SFTP username')
+param sftpUsername string = 'rneuser'
+
+@description('SFTP password')
+@secure()
+param sftpPassword string
+
+@description('Allowed IP addresses for SFTP access (CIDR notation)')
+param allowedSftpIpRanges array = []
+
+@description('Operations API endpoint (GraphQL mock server)')
+param opsApiEndpoint string = 'http://localhost:5000'
+
+// Variables
+var uniqueSuffix = uniqueString(resourceGroup().id)
+var storageAccountName = 'st${baseName}${uniqueSuffix}'
+var logAnalyticsName = 'log-${baseName}-${environment}'
+var appInsightsName = 'appi-${baseName}-${environment}'
+var containerAppsEnvName = 'cae-${baseName}-${environment}'
+var vnetName = 'vnet-${baseName}-${environment}'
+
+// Tags for all resources
+var tags = {
+  Environment: environment
+  Project: 'Transgrid RNE Export'
+  ManagedBy: 'Bicep'
+}
+
+// Virtual Network for Container Apps
+resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
+  name: vnetName
+  location: location
+  tags: tags
+  properties: {
+    addressSpace: {
+      addressPrefixes: [
+        '10.0.0.0/16'
+      ]
+    }
+    subnets: [
+      {
+        name: 'snet-container-apps'
+        properties: {
+          addressPrefix: '10.0.0.0/23'
+          delegations: [
+            {
+              name: 'Microsoft.App.environments'
+              properties: {
+                serviceName: 'Microsoft.App/environments'
+              }
+            }
+          ]
+        }
+      }
+      {
+        name: 'snet-integration'
+        properties: {
+          addressPrefix: '10.0.2.0/24'
+          delegations: [
+            {
+              name: 'Microsoft.Web.serverFarms'
+              properties: {
+                serviceName: 'Microsoft.Web/serverFarms'
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+// Storage Account for all services
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: storageAccountName
+  location: location
+  tags: tags
+  sku: {
+    name: 'Standard_LRS'
+  }
+  kind: 'StorageV2'
+  properties: {
+    supportsHttpsTrafficOnly: true
+    minimumTlsVersion: 'TLS1_2'
+    allowBlobPublicAccess: false
+    accessTier: 'Hot'
+  }
+}
+
+// Blob Container for RNE exports
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  parent: storageAccount
+  name: 'default'
+}
+
+resource rneExportContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'ci-rne-export'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+// Table Storage for failed exports
+resource tableService 'Microsoft.Storage/storageAccounts/tableServices@2023-05-01' = {
+  parent: storageAccount
+  name: 'default'
+}
+
+resource failedExportsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  parent: tableService
+  name: 'FailedExports'
+}
+
+// File Shares for SFTP
+resource fileService 'Microsoft.Storage/storageAccounts/fileServices@2023-05-01' = {
+  parent: storageAccount
+  name: 'default'
+}
+
+resource sftpDataSharePrimary 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
+  parent: fileService
+  name: 'sftpdata'
+  properties: {
+    shareQuota: 10
+  }
+}
+
+resource sshKeysSharePrimary 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
+  parent: fileService
+  name: 'sshkeys'
+  properties: {
+    shareQuota: 1
+  }
+}
+
+resource scriptsSharePrimary 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
+  parent: fileService
+  name: 'scripts'
+  properties: {
+    shareQuota: 1
+  }
+}
+
+// Backup SFTP shares
+resource sftpDataShareBackup 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
+  parent: fileService
+  name: 'sftpdata-backup'
+  properties: {
+    shareQuota: 10
+  }
+}
+
+resource sshKeysShareBackup 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
+  parent: fileService
+  name: 'sshkeys-backup'
+  properties: {
+    shareQuota: 1
+  }
+}
+
+resource scriptsShareBackup 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
+  parent: fileService
+  name: 'scripts-backup'
+  properties: {
+    shareQuota: 1
+  }
+}
+
+// Log Analytics Workspace
+resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
+  name: logAnalyticsName
+  location: location
+  tags: tags
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 30
+  }
+}
+
+// Application Insights
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: appInsightsName
+  location: location
+  tags: tags
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logAnalytics.id
+  }
+}
+
+// Container Apps Environment
+resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-11-02-preview' = {
+  name: containerAppsEnvName
+  location: location
+  tags: tags
+  properties: {
+    vnetConfiguration: {
+      infrastructureSubnetId: vnet.properties.subnets[0].id
+    }
+    appLogsConfiguration: {
+      destination: 'log-analytics'
+      logAnalyticsConfiguration: {
+        customerId: logAnalytics.properties.customerId
+        sharedKey: logAnalytics.listKeys().primarySharedKey
+      }
+    }
+    workloadProfiles: [
+      {
+        name: 'Consumption'
+        workloadProfileType: 'Consumption'
+      }
+    ]
+  }
+}
+
+// Primary SFTP Server
+module sftpPrimary 'modules/sftp-server.bicep' = {
+  name: 'sftp-primary-deployment'
+  params: {
+    nameSuffix: 'rne-primary'
+    location: location
+    environment: environment
+    sftpUsername: sftpUsername
+    sftpPassword: sftpPassword
+    containerAppsEnvironmentId: containerAppsEnvironment.id
+    storageAccountName: storageAccount.name
+    storageAccountKey: storageAccount.listKeys().keys[0].value
+    allowedIpRanges: allowedSftpIpRanges
+  }
+}
+
+// Backup SFTP Server
+module sftpBackup 'modules/sftp-server.bicep' = {
+  name: 'sftp-backup-deployment'
+  params: {
+    nameSuffix: 'rne-backup'
+    location: location
+    environment: environment
+    sftpUsername: sftpUsername
+    sftpPassword: sftpPassword
+    containerAppsEnvironmentId: containerAppsEnvironment.id
+    storageAccountName: storageAccount.name
+    storageAccountKey: storageAccount.listKeys().keys[0].value
+    allowedIpRanges: allowedSftpIpRanges
+  }
+}
+
+// Azure Function for transformation
+module functionApp 'modules/function-app.bicep' = {
+  name: 'function-app-deployment'
+  params: {
+    functionAppName: '${baseName}-transform'
+    location: location
+    environment: environment
+    storageAccountName: storageAccount.name
+    storageConnectionString: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${az.environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
+    appInsightsInstrumentationKey: appInsights.properties.InstrumentationKey
+    appInsightsConnectionString: appInsights.properties.ConnectionString
+    opsApiEndpoint: opsApiEndpoint
+  }
+}
+
+// Logic App Standard
+module logicApp 'modules/logic-app.bicep' = {
+  name: 'logic-app-deployment'
+  params: {
+    logicAppName: '${baseName}-rne-export'
+    location: location
+    environment: environment
+    storageAccountName: storageAccount.name
+    storageConnectionString: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${az.environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
+    appInsightsInstrumentationKey: appInsights.properties.InstrumentationKey
+    appInsightsConnectionString: appInsights.properties.ConnectionString
+    blobConnectionString: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${az.environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
+    tableConnectionString: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${az.environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
+    primarySftpEndpoint: sftpPrimary.outputs.sftpEndpoint
+    backupSftpEndpoint: sftpBackup.outputs.sftpEndpoint
+    functionEndpoint: functionApp.outputs.functionEndpoint
+    opsApiEndpoint: opsApiEndpoint
+  }
+}
+
+// Outputs
+output resourceGroupName string = resourceGroup().name
+output storageAccountName string = storageAccount.name
+output storageAccountId string = storageAccount.id
+output blobContainerName string = rneExportContainer.name
+output tableStorageName string = failedExportsTable.name
+
+output containerAppsEnvironmentId string = containerAppsEnvironment.id
+output containerAppsEnvironmentName string = containerAppsEnvironment.name
+
+output primarySftpEndpoint string = sftpPrimary.outputs.sftpEndpoint
+output primarySftpFqdn string = sftpPrimary.outputs.containerAppFqdn
+output backupSftpEndpoint string = sftpBackup.outputs.sftpEndpoint
+output backupSftpFqdn string = sftpBackup.outputs.containerAppFqdn
+
+output functionAppName string = functionApp.outputs.functionAppName
+output functionEndpoint string = functionApp.outputs.functionEndpoint
+
+output logicAppName string = logicApp.outputs.logicAppName
+output logicAppHostname string = logicApp.outputs.logicAppDefaultHostname
+
+output appInsightsName string = appInsights.name
+output appInsightsInstrumentationKey string = appInsights.properties.InstrumentationKey

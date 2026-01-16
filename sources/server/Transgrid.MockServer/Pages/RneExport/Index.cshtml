@@ -1,0 +1,708 @@
+@page
+@model Transgrid.MockServer.Pages.RneExport.IndexModel
+@{
+    ViewData["Title"] = "RNE Export Simulator";
+}
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="display-5"><i class="bi bi-cloud-upload"></i> RNE Operational Plans Export</h1>
+            <p class="lead text-muted">Simulate the Logic Apps export workflow for Rail Net Europe operational plans</p>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-graph-up"></i> Total Exports (24h)</h5>
+                    <h2 id="totalExports">-</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-check-circle"></i> Successful</h5>
+                    <h2 id="successfulExports">-</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-x-circle"></i> Failed</h5>
+                    <h2 id="failedExports">-</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-arrow-repeat"></i> Pending Retry</h5>
+                    <h2 id="pendingRetries">-</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Simulation Panel -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <i class="bi bi-play-circle"></i> Export Simulation
+                </div>
+                <div class="card-body">
+                    <form id="simulateForm">
+                        <div class="mb-3">
+                            <label for="travelDate" class="form-label">Travel Date</label>
+                            <input type="date" class="form-control" id="travelDate" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="exportType" class="form-label">Export Type</label>
+                            <select class="form-select" id="exportType">
+                                <option value="DAILY">Daily Export (D-1)</option>
+                                <option value="D+2">D+2 Future Export</option>
+                            </select>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="simulateFailures">
+                            <label class="form-check-label" for="simulateFailures">Simulate Failures</label>
+                        </div>
+                        <div class="mb-3" id="failureRateGroup" style="display: none;">
+                            <label for="failureRate" class="form-label">Failure Rate: <span id="failureRateValue">10%</span></label>
+                            <input type="range" class="form-range" id="failureRate" min="0" max="100" value="10">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-lightning"></i> Run Export
+                        </button>
+                    </form>
+                    
+                    <hr>
+                    
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-warning" id="retryBtn">
+                            <i class="bi bi-arrow-repeat"></i> Retry Failed Exports
+                        </button>
+                        <button class="btn btn-outline-secondary" id="clearFailedBtn">
+                            <i class="bi bi-trash"></i> Clear Failed Queue
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logic Apps Schedule Info -->
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <i class="bi bi-calendar-check"></i> Logic Apps Schedule
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <td><span class="badge bg-primary">Daily</span></td>
+                                <td>06:00 AM (Paris)</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-secondary">D+2</span></td>
+                                <td>06:30 AM (Paris)</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-warning text-dark">Retry</span></td>
+                                <td>07:00 AM (Paris)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- HTTP Trigger Logic App -->
+            <div class="card mt-3">
+                <div class="card-header bg-success text-white">
+                    <i class="bi bi-link-45deg"></i> HTTP Trigger (On-Demand)
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">
+                        Use the HTTP-triggered Logic App for manual or external system integration.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Endpoint URL:</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control font-monospace" id="httpTriggerUrl" 
+                                   value="https://{logic-app-name}.azurewebsites.net/api/rne-http-trigger/triggers/Manual_HTTP_Trigger/invoke?api-version=2022-05-01" 
+                                   readonly>
+                            <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('httpTriggerUrl')">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Request Body (JSON):</label>
+                        <pre class="bg-dark text-light p-2 small mb-0" style="font-size: 0.75rem;">{
+  "travelDate": "2026-01-16",
+  "exportType": "ADHOC",
+  "trainIds": ["ES9012", "ES9014"]
+}</pre>
+                    </div>
+                    <div class="accordion accordion-flush" id="httpTriggerAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed py-2" type="button" 
+                                        data-bs-toggle="collapse" data-bs-target="#httpTriggerDetails">
+                                    <small><i class="bi bi-info-circle me-1"></i> View Details & Usage</small>
+                                </button>
+                            </h2>
+                            <div id="httpTriggerDetails" class="accordion-collapse collapse" 
+                                 data-bs-parent="#httpTriggerAccordion">
+                                <div class="accordion-body small">
+                                    <h6><i class="bi bi-file-earmark-code"></i> Parameters</h6>
+                                    <table class="table table-sm table-bordered mb-3">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Parameter</th>
+                                                <th>Type</th>
+                                                <th>Required</th>
+                                                <th>Description</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td><code>travelDate</code></td>
+                                                <td>string</td>
+                                                <td><span class="badge bg-danger">Yes</span></td>
+                                                <td>Travel date in <code>yyyy-MM-dd</code> format</td>
+                                            </tr>
+                                            <tr>
+                                                <td><code>exportType</code></td>
+                                                <td>string</td>
+                                                <td><span class="badge bg-secondary">No</span></td>
+                                                <td>DAILY, D+2, or ADHOC (default: ADHOC)</td>
+                                            </tr>
+                                            <tr>
+                                                <td><code>trainIds</code></td>
+                                                <td>array</td>
+                                                <td><span class="badge bg-secondary">No</span></td>
+                                                <td>Specific train service codes to export</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    
+                                    <h6><i class="bi bi-terminal"></i> cURL Example</h6>
+                                    <pre class="bg-dark text-light p-2" style="font-size: 0.7rem; white-space: pre-wrap;">curl -X POST \
+  "https://{logic-app}.azurewebsites.net/api/rne-http-trigger/triggers/Manual_HTTP_Trigger/invoke?api-version=2022-05-01&sig={sas-token}" \
+  -H "Content-Type: application/json" \
+  -d '{"travelDate":"2026-01-16","exportType":"ADHOC"}'</pre>
+                                    
+                                    <h6 class="mt-3"><i class="bi bi-check2-circle"></i> Response</h6>
+                                    <pre class="bg-dark text-light p-2" style="font-size: 0.7rem;">{
+  "status": "completed",
+  "exportType": "ADHOC",
+  "travelDate": "2026-01-16",
+  "summary": {
+    "totalPlansProcessed": 5,
+    "successfulExports": 5,
+    "failedExports": 0
+  },
+  "message": "All exports completed successfully"
+}</pre>
+                                    
+                                    <h6 class="mt-3"><i class="bi bi-lightbulb"></i> Use Cases</h6>
+                                    <ul class="mb-0">
+                                        <li><strong>Manual Re-export:</strong> Re-export specific trains after data corrections</li>
+                                        <li><strong>Integration:</strong> Trigger from external systems (ServiceNow, Jira, etc.)</li>
+                                        <li><strong>Testing:</strong> Validate exports before scheduled runs</li>
+                                        <li><strong>Emergency:</strong> Ad-hoc exports for urgent schedule changes</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <hr class="my-2">
+                    <button class="btn btn-success btn-sm w-100" data-bs-toggle="modal" data-bs-target="#httpTestModal">
+                        <i class="bi bi-play-fill"></i> Test HTTP Trigger
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div class="col-md-8">
+            <!-- Export Progress -->
+            <div id="progressCard" class="card mb-3" style="display: none;">
+                <div class="card-header">
+                    <i class="bi bi-hourglass-split"></i> Export In Progress
+                </div>
+                <div class="card-body">
+                    <div class="progress" style="height: 25px;">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Last Export Results -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <i class="bi bi-journal-text"></i> Latest Export Results
+                </div>
+                <div class="card-body" id="resultsContainer">
+                    <p class="text-muted">Run a simulation to see results...</p>
+                </div>
+            </div>
+
+            <!-- Export History -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-clock-history"></i> Export History</span>
+                    <button class="btn btn-sm btn-outline-secondary" id="refreshHistoryBtn">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Type</th>
+                                    <th>Travel Date</th>
+                                    <th>Total</th>
+                                    <th>Success</th>
+                                    <th>Failed</th>
+                                    <th>Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTable">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- XML Preview Modal -->
+    <div class="modal fade" id="xmlModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-filetype-xml"></i> XML Preview</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <pre id="xmlContent" class="bg-dark text-light p-3" style="max-height: 500px; overflow: auto;"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HTTP Trigger Test Modal -->
+    <div class="modal fade" id="httpTestModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="bi bi-link-45deg"></i> Test HTTP Trigger</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> This simulates the HTTP-triggered Logic App workflow.
+                        In production, this would call the actual Logic App HTTP endpoint.
+                    </div>
+                    
+                    <form id="httpTriggerForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="httpTravelDate" class="form-label">Travel Date <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" id="httpTravelDate" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="httpExportType" class="form-label">Export Type</label>
+                                    <select class="form-select" id="httpExportType">
+                                        <option value="ADHOC" selected>ADHOC (On-Demand)</option>
+                                        <option value="DAILY">DAILY</option>
+                                        <option value="D+2">D+2</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="httpTrainIds" class="form-label">
+                                Train IDs (optional)
+                                <small class="text-muted">- comma-separated service codes</small>
+                            </label>
+                            <input type="text" class="form-control" id="httpTrainIds" 
+                                   placeholder="e.g., ES9012, ES9014, ES9016">
+                            <div class="form-text">Leave empty to export all matching trains for the date.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Generated Request Body:</label>
+                            <pre id="httpRequestPreview" class="bg-dark text-light p-3" style="font-size: 0.85rem;"></pre>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" id="executeHttpTrigger">
+                        <i class="bi bi-send"></i> Execute HTTP Trigger
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HTTP Response Modal -->
+    <div class="modal fade" id="httpResponseModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-reply"></i> HTTP Response</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="httpResponseStatus" class="mb-3"></div>
+                    <pre id="httpResponseBody" class="bg-dark text-light p-3" style="max-height: 400px; overflow: auto;"></pre>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const apiBase = '@Model.BaseApiUrl';
+    
+    // Set default date to today
+    document.getElementById('travelDate').valueAsDate = new Date();
+    document.getElementById('httpTravelDate').valueAsDate = new Date();
+    
+    // Toggle failure rate visibility
+    document.getElementById('simulateFailures').addEventListener('change', function() {
+        document.getElementById('failureRateGroup').style.display = this.checked ? 'block' : 'none';
+    });
+    
+    document.getElementById('failureRate').addEventListener('input', function() {
+        document.getElementById('failureRateValue').textContent = this.value + '%';
+    });
+    
+    // Load initial stats
+    loadStats();
+    loadHistory();
+    
+    // Update HTTP request preview
+    function updateHttpRequestPreview() {
+        const travelDate = document.getElementById('httpTravelDate').value;
+        const exportType = document.getElementById('httpExportType').value;
+        const trainIdsInput = document.getElementById('httpTrainIds').value;
+        
+        const request = {
+            travelDate: travelDate || new Date().toISOString().split('T')[0],
+            exportType: exportType
+        };
+        
+        if (trainIdsInput.trim()) {
+            request.trainIds = trainIdsInput.split(',').map(id => id.trim()).filter(id => id);
+        }
+        
+        document.getElementById('httpRequestPreview').textContent = JSON.stringify(request, null, 2);
+    }
+    
+    // Initialize and bind events for HTTP preview
+    document.getElementById('httpTravelDate').addEventListener('change', updateHttpRequestPreview);
+    document.getElementById('httpExportType').addEventListener('change', updateHttpRequestPreview);
+    document.getElementById('httpTrainIds').addEventListener('input', updateHttpRequestPreview);
+    
+    // Update preview when modal opens
+    document.getElementById('httpTestModal').addEventListener('show.bs.modal', function() {
+        document.getElementById('httpTravelDate').valueAsDate = new Date();
+        updateHttpRequestPreview();
+    });
+    
+    // Execute HTTP trigger
+    document.getElementById('executeHttpTrigger').addEventListener('click', async function() {
+        const travelDate = document.getElementById('httpTravelDate').value;
+        const exportType = document.getElementById('httpExportType').value;
+        const trainIdsInput = document.getElementById('httpTrainIds').value;
+        
+        if (!travelDate) {
+            alert('Travel date is required');
+            return;
+        }
+        
+        const request = {
+            travelDate: travelDate,
+            exportType: exportType,
+            simulateFailures: false,
+            failureRate: 0
+        };
+        
+        // Close test modal
+        bootstrap.Modal.getInstance(document.getElementById('httpTestModal')).hide();
+        
+        showProgress();
+        
+        try {
+            const response = await fetch(`${apiBase}/api/RneExport/simulate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(request)
+            });
+            
+            const result = await response.json();
+            
+            // Show HTTP response modal
+            const statusClass = result.failedExports === 0 ? 'alert-success' : 'alert-warning';
+            const statusIcon = result.failedExports === 0 ? 'check-circle' : 'exclamation-triangle';
+            
+            document.getElementById('httpResponseStatus').innerHTML = `
+                <div class="alert ${statusClass}">
+                    <i class="bi bi-${statusIcon}"></i>
+                    <strong>HTTP 200 OK</strong> - ${result.successfulExports} of ${result.totalPlans} exports successful
+                </div>
+            `;
+            
+            // Format response like the Logic App would return
+            const httpResponse = {
+                status: "completed",
+                exportType: result.exportType,
+                travelDate: result.travelDate,
+                triggeredAt: new Date().toISOString(),
+                summary: {
+                    totalPlansProcessed: result.totalPlans,
+                    successfulExports: result.successfulExports,
+                    failedExports: result.failedExports
+                },
+                failedTrains: result.results?.filter(r => !r.success).map(r => ({
+                    trainId: r.serviceCode,
+                    travelDate: r.travelDate,
+                    failureReason: r.errorMessage
+                })) || [],
+                message: result.failedExports === 0 
+                    ? "All exports completed successfully" 
+                    : `Export completed with ${result.failedExports} failures`
+            };
+            
+            document.getElementById('httpResponseBody').textContent = JSON.stringify(httpResponse, null, 2);
+            
+            const responseModal = new bootstrap.Modal(document.getElementById('httpResponseModal'));
+            responseModal.show();
+            
+            // Also update main results
+            displayResults(result);
+            loadStats();
+            loadHistory();
+        } catch (err) {
+            alert('HTTP trigger failed: ' + err.message);
+        }
+        
+        hideProgress();
+    });
+    
+    // Copy to clipboard function
+    function copyToClipboard(elementId) {
+        const element = document.getElementById(elementId);
+        element.select();
+        document.execCommand('copy');
+        
+        // Show feedback
+        const btn = element.nextElementSibling;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check"></i>';
+        setTimeout(() => { btn.innerHTML = originalHtml; }, 1500);
+    }
+    window.copyToClipboard = copyToClipboard;
+    
+    // Simulate export
+    document.getElementById('simulateForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const travelDate = document.getElementById('travelDate').value;
+        const exportType = document.getElementById('exportType').value;
+        const simulateFailures = document.getElementById('simulateFailures').checked;
+        const failureRate = parseInt(document.getElementById('failureRate').value) / 100;
+        
+        showProgress();
+        
+        try {
+            const response = await fetch(`${apiBase}/api/RneExport/simulate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ travelDate, exportType, simulateFailures, failureRate })
+            });
+            
+            const result = await response.json();
+            displayResults(result);
+            loadStats();
+            loadHistory();
+        } catch (err) {
+            alert('Export failed: ' + err.message);
+        }
+        
+        hideProgress();
+    });
+    
+    // Retry failed
+    document.getElementById('retryBtn').addEventListener('click', async function() {
+        try {
+            const response = await fetch(`${apiBase}/api/RneExport/retry`, { method: 'POST' });
+            const result = await response.json();
+            displayResults(result);
+            loadStats();
+            loadHistory();
+        } catch (err) {
+            alert('Retry failed: ' + err.message);
+        }
+    });
+    
+    // Clear failed
+    document.getElementById('clearFailedBtn').addEventListener('click', async function() {
+        if (confirm('Clear all failed exports?')) {
+            await fetch(`${apiBase}/api/RneExport/clear-failed`, { method: 'POST' });
+            loadStats();
+        }
+    });
+    
+    // Refresh history
+    document.getElementById('refreshHistoryBtn').addEventListener('click', function() {
+        loadHistory();
+        loadStats();
+    });
+    
+    async function loadStats() {
+        try {
+            const response = await fetch(`${apiBase}/api/RneExport/stats`);
+            const stats = await response.json();
+            
+            document.getElementById('totalExports').textContent = stats.totalExportsLast24Hours;
+            document.getElementById('successfulExports').textContent = stats.successfulLast24Hours;
+            document.getElementById('failedExports').textContent = stats.failedLast24Hours;
+            document.getElementById('pendingRetries').textContent = stats.pendingRetries;
+        } catch (err) {
+            console.error('Failed to load stats', err);
+        }
+    }
+    
+    async function loadHistory() {
+        try {
+            const response = await fetch(`${apiBase}/api/RneExport/history?limit=10`);
+            const history = await response.json();
+            
+            const tbody = document.getElementById('historyTable');
+            tbody.innerHTML = history.map(h => `
+                <tr>
+                    <td>${new Date(h.executedAt).toLocaleString()}</td>
+                    <td><span class="badge ${getTypeBadge(h.exportType)}">${h.exportType}</span></td>
+                    <td>${new Date(h.travelDate).toLocaleDateString()}</td>
+                    <td>${h.totalPlans}</td>
+                    <td class="text-success">${h.successfulExports}</td>
+                    <td class="text-danger">${h.failedExports}</td>
+                    <td>${h.duration.split('.')[0].replace('00:', '')}s</td>
+                </tr>
+            `).join('');
+        } catch (err) {
+            console.error('Failed to load history', err);
+        }
+    }
+    
+    function getTypeBadge(type) {
+        switch(type) {
+            case 'DAILY': return 'bg-primary';
+            case 'D+2': return 'bg-secondary';
+            case 'RETRY': return 'bg-warning text-dark';
+            case 'ADHOC': return 'bg-success';
+            default: return 'bg-info';
+        }
+    }
+    
+    function showProgress() {
+        const card = document.getElementById('progressCard');
+        const bar = document.getElementById('progressBar');
+        card.style.display = 'block';
+        bar.style.width = '100%';
+        bar.textContent = 'Processing...';
+    }
+    
+    function hideProgress() {
+        document.getElementById('progressCard').style.display = 'none';
+    }
+    
+    function displayResults(result) {
+        const container = document.getElementById('resultsContainer');
+        
+        if (!result.results || result.results.length === 0) {
+            container.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> No train plans found matching the criteria for the selected date.
+                </div>
+            `;
+            return;
+        }
+        
+        const successCount = result.results.filter(r => r.success).length;
+        const failedCount = result.results.filter(r => !r.success).length;
+        
+        container.innerHTML = `
+            <div class="alert ${failedCount === 0 ? 'alert-success' : 'alert-warning'}">
+                <strong>${result.exportType} Export Complete</strong><br>
+                Travel Date: ${new Date(result.travelDate).toLocaleDateString()}<br>
+                Duration: ${result.duration.split('.')[0]}s<br>
+                <span class="text-success">${successCount} successful</span> | 
+                <span class="text-danger">${failedCount} failed</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Service</th>
+                            <th>Status</th>
+                            <th>Blob Path</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${result.results.map(r => `
+                            <tr>
+                                <td><strong>${r.serviceCode}</strong></td>
+                                <td>
+                                    ${r.success 
+                                        ? '<span class="badge bg-success"><i class="bi bi-check"></i> Success</span>' 
+                                        : `<span class="badge bg-danger" title="${r.errorMessage}"><i class="bi bi-x"></i> Failed</span>`
+                                    }
+                                </td>
+                                <td><code>${r.blobPath || '-'}</code></td>
+                                <td>
+                                    ${r.xmlPreview 
+                                        ? `<button class="btn btn-sm btn-outline-info" onclick="showXml('${encodeURIComponent(r.xmlPreview)}')">
+                                            <i class="bi bi-code"></i> XML
+                                           </button>` 
+                                        : '-'
+                                    }
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    function showXml(encoded) {
+        const xml = decodeURIComponent(encoded);
+        document.getElementById('xmlContent').textContent = xml;
+        const modal = new bootstrap.Modal(document.getElementById('xmlModal'));
+        modal.show();
+    }
+</script>
+}

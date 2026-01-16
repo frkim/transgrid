@@ -1,0 +1,14 @@
+{
+  "OPS_API_ENDPOINT": {
+    "type": "String",
+    "value": "@appsetting('OPS_API_ENDPOINT')"
+  },
+  "FUNCTION_ENDPOINT": {
+    "type": "String",
+    "value": "@appsetting('FUNCTION_ENDPOINT')"
+  },
+  "STORAGE_ACCOUNT_NAME": {
+    "type": "String",
+    "value": "@appsetting('STORAGE_ACCOUNT_NAME')"
+  }
+}

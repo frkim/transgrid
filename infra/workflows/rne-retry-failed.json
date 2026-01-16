@@ -1,0 +1,291 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "Recurrence_Retry_Failed": {
+        "type": "Recurrence",
+        "recurrence": {
+          "frequency": "Day",
+          "interval": 1,
+          "schedule": {
+            "hours": ["7"],
+            "minutes": [0]
+          },
+          "timeZone": "Romance Standard Time"
+        }
+      }
+    },
+    "actions": {
+      "Initialize_TodayDate": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "TodayDate",
+              "type": "string",
+              "value": "@{formatDateTime(utcNow(), 'yyyy-MM-dd')}"
+            }
+          ]
+        },
+        "runAfter": {}
+      },
+      "Initialize_MaxRetries": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "MaxRetries",
+              "type": "integer",
+              "value": 3
+            }
+          ]
+        },
+        "runAfter": {
+          "Initialize_TodayDate": ["Succeeded"]
+        }
+      },
+      "Query_Failed_Exports": {
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['azuretables']['connectionId']"
+            }
+          },
+          "method": "get",
+          "path": "/v2/storageAccounts/@{encodeURIComponent('AccountNameFromSettings')}/tables/@{encodeURIComponent('FailedExports')}/entities",
+          "queries": {
+            "$filter": "PartitionKey eq '@{variables('TodayDate')}' and RetryCount lt @{variables('MaxRetries')}"
+          }
+        },
+        "runAfter": {
+          "Initialize_MaxRetries": ["Succeeded"]
+        }
+      },
+      "Parse_Failed_Exports": {
+        "type": "ParseJson",
+        "inputs": {
+          "content": "@body('Query_Failed_Exports')?['value']",
+          "schema": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "PartitionKey": { "type": "string" },
+                "RowKey": { "type": "string" },
+                "TrainId": { "type": "string" },
+                "TravelDate": { "type": "string" },
+                "FailureReason": { "type": "string" },
+                "RetryCount": { "type": "integer" },
+                "CreatedAt": { "type": "string" }
+              }
+            }
+          }
+        },
+        "runAfter": {
+          "Query_Failed_Exports": ["Succeeded"]
+        }
+      },
+      "For_Each_Failed_Export": {
+        "type": "Foreach",
+        "foreach": "@body('Parse_Failed_Exports')",
+        "actions": {
+          "Get_Train_Plan_By_Id": {
+            "type": "Http",
+            "inputs": {
+              "method": "POST",
+              "uri": "@{appsetting('OPS_API_ENDPOINT')}",
+              "headers": {
+                "Content-Type": "application/json"
+              },
+              "body": {
+                "query": "query GetTrainPlanById($id: ID!) { trainPlan(id: $id) { id serviceCode pathway travelDate passagePoints { locationCode arrivalTime departureTime } origin destination status planType country } }",
+                "variables": {
+                  "id": "@{items('For_Each_Failed_Export')?['TrainId']}"
+                }
+              }
+            },
+            "runAfter": {}
+          },
+          "Parse_Train_Plan": {
+            "type": "ParseJson",
+            "inputs": {
+              "content": "@body('Get_Train_Plan_By_Id')",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "trainPlan": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "serviceCode": { "type": "string" },
+                          "pathway": { "type": "string" },
+                          "travelDate": { "type": "string" },
+                          "origin": { "type": "string" },
+                          "destination": { "type": "string" },
+                          "status": { "type": "string" },
+                          "planType": { "type": "string" },
+                          "country": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "runAfter": {
+              "Get_Train_Plan_By_Id": ["Succeeded"]
+            }
+          },
+          "Transform_JSON_to_XML": {
+            "type": "Http",
+            "inputs": {
+              "method": "POST",
+              "uri": "@{appsetting('FUNCTION_ENDPOINT')}/TransformTrainPlan",
+              "headers": {
+                "Content-Type": "application/json"
+              },
+              "body": "@body('Parse_Train_Plan')?['data']?['trainPlan']"
+            },
+            "runAfter": {
+              "Parse_Train_Plan": ["Succeeded"]
+            }
+          },
+          "Scope_Retry_Upload": {
+            "type": "Scope",
+            "actions": {
+              "Archive_to_Blob": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['azureblob']['connectionId']"
+                    }
+                  },
+                  "method": "post",
+                  "path": "/v2/datasets/@{encodeURIComponent('AccountNameFromSettings')}/files",
+                  "queries": {
+                    "folderPath": "/ci-rne-export/@{formatDateTime(utcNow(), 'yyyy-MM')}/@{items('For_Each_Failed_Export')?['TravelDate']}",
+                    "name": "@{items('For_Each_Failed_Export')?['TrainId']}_@{items('For_Each_Failed_Export')?['TravelDate']}_retry.xml",
+                    "queryParametersSingleEncoded": true
+                  },
+                  "body": "@body('Transform_JSON_to_XML')"
+                },
+                "runAfter": {}
+              },
+              "Upload_to_Primary_SFTP": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sftpprimary']['connectionId']"
+                    }
+                  },
+                  "method": "post",
+                  "path": "/datasets/default/files",
+                  "queries": {
+                    "folderPath": "/upload/@{items('For_Each_Failed_Export')?['TravelDate']}",
+                    "name": "@{items('For_Each_Failed_Export')?['TrainId']}_@{items('For_Each_Failed_Export')?['TravelDate']}_retry.xml",
+                    "queryParametersSingleEncoded": true
+                  },
+                  "body": "@body('Transform_JSON_to_XML')"
+                },
+                "runAfter": {
+                  "Archive_to_Blob": ["Succeeded"]
+                }
+              },
+              "Delete_Retry_Record": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['azuretables']['connectionId']"
+                    }
+                  },
+                  "method": "delete",
+                  "path": "/v2/storageAccounts/@{encodeURIComponent('AccountNameFromSettings')}/tables/@{encodeURIComponent('FailedExports')}/entities(PartitionKey='@{items('For_Each_Failed_Export')?['PartitionKey']}',RowKey='@{items('For_Each_Failed_Export')?['RowKey']}')"
+                },
+                "runAfter": {
+                  "Upload_to_Primary_SFTP": ["Succeeded"]
+                }
+              }
+            },
+            "runAfter": {
+              "Transform_JSON_to_XML": ["Succeeded"]
+            }
+          },
+          "Scope_Increment_Retry": {
+            "type": "Scope",
+            "actions": {
+              "Update_Retry_Count": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['azuretables']['connectionId']"
+                    }
+                  },
+                  "method": "put",
+                  "path": "/v2/storageAccounts/@{encodeURIComponent('AccountNameFromSettings')}/tables/@{encodeURIComponent('FailedExports')}/entities(PartitionKey='@{items('For_Each_Failed_Export')?['PartitionKey']}',RowKey='@{items('For_Each_Failed_Export')?['RowKey']}')",
+                  "body": {
+                    "PartitionKey": "@{items('For_Each_Failed_Export')?['PartitionKey']}",
+                    "RowKey": "@{items('For_Each_Failed_Export')?['RowKey']}",
+                    "TrainId": "@{items('For_Each_Failed_Export')?['TrainId']}",
+                    "TravelDate": "@{items('For_Each_Failed_Export')?['TravelDate']}",
+                    "FailureReason": "@{items('For_Each_Failed_Export')?['FailureReason']}",
+                    "RetryCount": "@{add(items('For_Each_Failed_Export')?['RetryCount'], 1)}",
+                    "CreatedAt": "@{items('For_Each_Failed_Export')?['CreatedAt']}",
+                    "LastRetryAt": "@{utcNow()}"
+                  }
+                },
+                "runAfter": {}
+              }
+            },
+            "runAfter": {
+              "Scope_Retry_Upload": ["Failed", "TimedOut"]
+            }
+          }
+        },
+        "runAfter": {
+          "Parse_Failed_Exports": ["Succeeded"]
+        },
+        "runtimeConfiguration": {
+          "concurrency": {
+            "repetitions": 1
+          }
+        }
+      }
+    },
+    "parameters": {
+      "$connections": {
+        "defaultValue": {},
+        "type": "Object"
+      }
+    }
+  },
+  "parameters": {
+    "$connections": {
+      "value": {
+        "azureblob": {
+          "connectionId": "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.Web/connections/azureblob",
+          "connectionName": "azureblob",
+          "id": "/subscriptions/{subscription-id}/providers/Microsoft.Web/locations/{location}/managedApis/azureblob"
+        },
+        "sftpprimary": {
+          "connectionId": "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.Web/connections/sftp-primary",
+          "connectionName": "sftp-primary",
+          "id": "/subscriptions/{subscription-id}/providers/Microsoft.Web/locations/{location}/managedApis/sftp"
+        },
+        "azuretables": {
+          "connectionId": "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.Web/connections/azuretables",
+          "connectionName": "azuretables",
+          "id": "/subscriptions/{subscription-id}/providers/Microsoft.Web/locations/{location}/managedApis/azuretables"
+        }
+      }
+    }
+  }
+}

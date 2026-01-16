@@ -1,0 +1,26 @@
+# Azure Functions/Logic Apps ignore file
+# Files and directories that should not be deployed
+
+# Development files
+.git*
+.vscode
+*.md
+local.settings.json
+
+# Build artifacts
+*.js.map
+*.ts
+.funcignore
+
+# Test files
+*.test.json
+test-*
+
+# IDE files
+.idea
+*.suo
+*.user
+
+# OS files
+.DS_Store
+Thumbs.db
