@@ -1,0 +1,32 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sources", "sources", "{C16B2082-E6A6-C480-36D0-FC08AA18D453}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "server", "server", "{BE6F544C-F095-3EE7-6D95-550B1E61B18E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Transgrid.MockServer", "sources\server\Transgrid.MockServer\Transgrid.MockServer.csproj", "{801E7E62-81EF-C624-F75F-52D8430E6EC4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{801E7E62-81EF-C624-F75F-52D8430E6EC4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{801E7E62-81EF-C624-F75F-52D8430E6EC4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{801E7E62-81EF-C624-F75F-52D8430E6EC4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{801E7E62-81EF-C624-F75F-52D8430E6EC4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{BE6F544C-F095-3EE7-6D95-550B1E61B18E} = {C16B2082-E6A6-C480-36D0-FC08AA18D453}
+		{801E7E62-81EF-C624-F75F-52D8430E6EC4} = {BE6F544C-F095-3EE7-6D95-550B1E61B18E}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {9EE477E4-2FC9-4021-A887-4B88972178B6}
+	EndGlobalSection
+EndGlobal
