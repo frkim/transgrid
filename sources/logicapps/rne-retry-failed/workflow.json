@@ -281,7 +281,7 @@
                 "type": "ServiceProvider",
                 "inputs": {
                   "serviceProviderConfiguration": {
-                    "connectionName": "AzureTableStorage",
+                    "connectionName": "AzureTables",
                     "operationId": "updateEntity",
                     "serviceProviderId": "/serviceProviders/AzureTables"
                   },
