@@ -6,15 +6,17 @@ This document provides detailed implementation guidance for the three integratio
 
 ## Overview
 
-| Use Case | Primary Service | Trigger Type | Complexity |
-|----------|----------------|--------------|------------|
-| RNE Operational Plans Export | Logic Apps Standard | Scheduled (Cron) | Medium |
-| Salesforce Negotiated Rates | Logic Apps + Functions | Event-Driven | High |
-| Network Rail CIF Processing | Azure Functions | Scheduled (Cron) | High |
+| Use Case | Primary Service | Trigger Type | Complexity | Demo |
+|----------|----------------|--------------|------------|------|
+| RNE Operational Plans Export | Logic Apps Standard | Scheduled (Cron) | Medium | [Try Demo](/RneExport) |
+| Salesforce Negotiated Rates | Logic Apps + Functions | Event-Driven | High | [Try Demo](/Salesforce) |
+| Network Rail CIF Processing | Azure Functions | Scheduled (Cron) | High | [Try Demo](/NetworkRail) |
 
 ---
 
 ## Use Case 1: RNE Operational Plans Export
+
+> **[Open Demo Page](/RneExport)** - Simulate exports, trigger HTTP workflows, and view results
 
 ### Description
 
@@ -155,6 +157,8 @@ The RNE Operational Plans Export is a **scheduled batch integration** that autom
 
 ## Use Case 2: Salesforce Negotiated Rates Export
 
+> **[Open Demo Page](/Salesforce)** - Simulate platform events, run extracts, and view CSV outputs
+
 ### Description
 
 The Salesforce Negotiated Rates Export is an **event-driven integration** that processes corporate discount agreements whenever they're approved in Salesforce. When sales managers finalize negotiated rates for business customers, the system automatically generates extract files for multiple distribution channels and booking systems.
@@ -240,6 +244,8 @@ Bob Wilson,EuroTravel,ET003,Thalys,PAR-BRU,ECO|COMF,CREATE
 ---
 
 ## Use Case 3: Network Rail CIF File Processing
+
+> **[Open Demo Page](/NetworkRail)** - Simulate CIF downloads, run processing, and view Protobuf events
 
 ### Description
 

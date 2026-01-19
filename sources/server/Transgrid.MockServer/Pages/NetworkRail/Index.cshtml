@@ -1,88 +1,277 @@
 @page
 @model IndexModel
 @{
-    ViewData["Title"] = "Network Rail - CIF Schedules";
+    ViewData["Title"] = "Network Rail - CIF Processing";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="gradient-text">
-        <i class="bi bi-diagram-3"></i> Network Rail - CIF Schedules
-    </h1>
-</div>
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="display-5"><i class="bi bi-diagram-3"></i> Network Rail CIF File Processing</h1>
+            <p class="lead text-muted">Simulate the Azure Function workflow for Network Rail CIF schedule processing (Use Case 3)</p>
+        </div>
+    </div>
 
-<div class="card shadow-lg mb-4">
-    <div class="card-header bg-gradient text-white">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <i class="bi bi-search"></i> Search & Filter
+    <!-- Stats Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white stat-card" data-filter="ALL" role="button" style="cursor: pointer;">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-collection"></i> Total Schedules</h5>
+                    <h2 id="totalSchedules">-</h2>
+                </div>
             </div>
-            <div class="col-md-4 text-end">
-                <span id="record-count" class="badge bg-light text-dark">0 records</span>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white stat-card" data-filter="EMU" role="button" style="cursor: pointer;">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-lightning"></i> EMU (Electric)</h5>
+                    <h2 id="emuCount">-</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark stat-card" data-filter="DMU" role="button" style="cursor: pointer;">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-fuel-pump"></i> DMU (Diesel)</h5>
+                    <h2 id="dmuCount">-</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white stat-card" data-filter="HST" role="button" style="cursor: pointer;">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-speedometer2"></i> HST (High Speed)</h5>
+                    <h2 id="hstCount">-</h2>
+                </div>
             </div>
         </div>
     </div>
-    <div class="card-body">
-        <div class="input-group">
-            <span class="input-group-text"><i class="bi bi-funnel"></i></span>
-            <input type="text" id="searchBox" class="form-control" placeholder="Search by train service number, operator, train class...">
-        </div>
-    </div>
-</div>
 
-<div class="card shadow-lg">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover table-striped" id="dataTable">
-                <thead class="table-dark">
-                    <tr>
-                        <th class="sortable" data-column="trainServiceNumber">
-                            Service Number <i class="bi bi-arrow-down-up"></i>
-                        </th>
-                        <th class="sortable" data-column="travelDate">
-                            Travel Date <i class="bi bi-arrow-down-up"></i>
-                        </th>
-                        <th class="sortable" data-column="operator">
-                            Operator <i class="bi bi-arrow-down-up"></i>
-                        </th>
-                        <th class="sortable" data-column="trainClass">
-                            Class <i class="bi bi-arrow-down-up"></i>
-                        </th>
-                        <th class="sortable" data-column="powerType">
-                            Power Type <i class="bi bi-arrow-down-up"></i>
-                        </th>
-                        <th>Locations</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                    <tr>
-                        <td colspan="7" class="text-center">
-                            <div class="spinner-border text-warning" role="status">
-                                <span class="visually-hidden">Loading...</span>
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Simulation Panel -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <i class="bi bi-play-circle"></i> CIF Processing Simulation
+                </div>
+                <div class="card-body">
+                    <form id="simulateForm">
+                        <div class="mb-3">
+                            <label for="processingType" class="form-label">Processing Type</label>
+                            <select class="form-select" id="processingType">
+                                <option value="HOURLY">Hourly Update (Delta)</option>
+                                <option value="WEEKLY">Weekly Full Refresh</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="recordCount" class="form-label">Simulated Records: <span id="recordCountValue">100</span></label>
+                            <input type="range" class="form-range" id="recordCount" min="10" max="500" value="100">
+                        </div>
+                        <div class="mb-3">
+                            <label for="filterRate" class="form-label">Filter Rate (CIF_stp_indicator != N): <span id="filterRateValue">30%</span></label>
+                            <input type="range" class="form-range" id="filterRate" min="0" max="80" value="30">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-lightning"></i> Run CIF Processing
+                        </button>
+                    </form>
+                    
+                    <hr>
+                    
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-info" id="downloadCifBtn">
+                            <i class="bi bi-cloud-download"></i> Simulate CIF Download
+                        </button>
+                        <button class="btn btn-outline-warning" id="clearSchedulesBtn">
+                            <i class="bi bi-trash"></i> Clear All Schedules
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timer Trigger Info -->
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <i class="bi bi-clock"></i> Azure Function Schedule
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <td><span class="badge bg-primary">Hourly</span></td>
+                                <td>Every hour at :00</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-secondary">Weekly</span></td>
+                                <td>Sunday 02:00 UTC</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p class="small text-muted mb-0">
+                        <i class="bi bi-info-circle"></i> Timer-triggered Azure Function processes CIF files from Network Rail NTROD.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Processing Pipeline Info -->
+            <div class="card mt-3">
+                <div class="card-header bg-secondary text-white">
+                    <i class="bi bi-gear"></i> Processing Pipeline
+                </div>
+                <div class="card-body">
+                    <ol class="small mb-0">
+                        <li><strong>Download:</strong> Fetch from NTROD API</li>
+                        <li><strong>Decompress:</strong> GZIP streaming</li>
+                        <li><strong>Parse:</strong> NDJSON line-by-line</li>
+                        <li><strong>Filter:</strong> CIF_stp_indicator = N</li>
+                        <li><strong>Transform:</strong> Map to Protobuf</li>
+                        <li><strong>Publish:</strong> gRPC to Message Store</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div class="col-md-8">
+            <!-- Processing Progress -->
+            <div id="progressCard" class="card mb-3" style="display: none;">
+                <div class="card-header">
+                    <i class="bi bi-hourglass-split"></i> Processing In Progress
+                </div>
+                <div class="card-body">
+                    <div class="progress mb-2" style="height: 25px;">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%">0%</div>
+                    </div>
+                    <div class="row text-center" id="pipelineProgress">
+                        <div class="col-2">
+                            <span class="badge bg-secondary" id="step1Status">Download</span>
+                        </div>
+                        <div class="col-2">
+                            <span class="badge bg-secondary" id="step2Status">Decompress</span>
+                        </div>
+                        <div class="col-2">
+                            <span class="badge bg-secondary" id="step3Status">Parse</span>
+                        </div>
+                        <div class="col-2">
+                            <span class="badge bg-secondary" id="step4Status">Filter</span>
+                        </div>
+                        <div class="col-2">
+                            <span class="badge bg-secondary" id="step5Status">Transform</span>
+                        </div>
+                        <div class="col-2">
+                            <span class="badge bg-secondary" id="step6Status">Publish</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Last Processing Results -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <i class="bi bi-journal-text"></i> Latest Processing Results
+                </div>
+                <div class="card-body" id="resultsContainer">
+                    <p class="text-muted">Run a simulation to see results...</p>
+                </div>
+            </div>
+
+            <!-- Schedules Grid -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-table"></i> CIF Schedules Data</span>
+                    <div>
+                        <span id="record-count" class="badge bg-light text-dark me-2">0 records</span>
+                        <button class="btn btn-sm btn-outline-secondary" id="refreshDataBtn">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-3">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="text" id="searchBox" class="form-control" placeholder="Search...">
                             </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+                        </div>
+                        <div class="col-md-2">
+                            <select id="filterOperator" class="form-select form-select-sm">
+                                <option value="">All Operators</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select id="filterClass" class="form-select form-select-sm">
+                                <option value="">All Classes</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select id="filterPowerType" class="form-select form-select-sm">
+                                <option value="">All Power Types</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-sm btn-outline-secondary w-100" id="clearFiltersBtn">
+                                <i class="bi bi-x-circle"></i> Clear All Filters
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-dark sticky-top">
+                                <tr>
+                                    <th>Service Number</th>
+                                    <th>Travel Date</th>
+                                    <th>Operator</th>
+                                    <th>Class</th>
+                                    <th>Power Type</th>
+                                    <th>Locations</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                                <tr>
+                                    <td colspan="7" class="text-center">
+                                        <div class="spinner-border text-primary" role="status"></div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Detail Modal -->
-<div class="modal fade" id="detailModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-gradient text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-info-circle"></i> CIF Schedule Details
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    <!-- Detail Modal -->
+    <div class="modal fade" id="detailModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title"><i class="bi bi-info-circle"></i> CIF Schedule Details</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="detailContent"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
             </div>
-            <div class="modal-body" id="detailContent">
-                <!-- Content will be populated dynamically -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+    </div>
+
+    <!-- Protobuf Preview Modal -->
+    <div class="modal fade" id="protobufModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-file-binary"></i> Protobuf Event Preview</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <pre id="protobufContent" class="bg-dark text-light p-3" style="max-height: 500px; overflow: auto;"></pre>
+                </div>
             </div>
         </div>
     </div>
@@ -90,21 +279,135 @@
 
 @section Scripts {
 <script>
+    const apiBase = '';
     let allData = [];
-    let sortColumn = 'trainServiceNumber';
-    let sortDirection = 'asc';
+    let powerTypeFilter = 'ALL';
     
-    // HTML escape function to prevent XSS
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+    // Update slider values
+    document.getElementById('recordCount').addEventListener('input', function() {
+        document.getElementById('recordCountValue').textContent = this.value;
+    });
+    document.getElementById('filterRate').addEventListener('input', function() {
+        document.getElementById('filterRateValue').textContent = this.value + '%';
+    });
+    
+    // Stat card click handlers for filtering
+    document.querySelectorAll('.stat-card').forEach(card => {
+        card.addEventListener('click', function() {
+            powerTypeFilter = this.dataset.filter;
+            
+            // Update card styles to show active state
+            document.querySelectorAll('.stat-card').forEach(c => {
+                c.classList.remove('border', 'border-4', 'border-dark');
+                c.style.opacity = '0.7';
+            });
+            this.classList.add('border', 'border-4', 'border-dark');
+            this.style.opacity = '1';
+            
+            renderTable();
+        });
+    });
+    
+    // Initialize with ALL filter
+    document.querySelector('.stat-card[data-filter="ALL"]').classList.add('border', 'border-4', 'border-dark');
+    document.querySelector('.stat-card[data-filter="ALL"]').style.opacity = '1';
+    document.querySelectorAll('.stat-card:not([data-filter="ALL"])').forEach(c => c.style.opacity = '0.7');
+    
+    // Load initial data
+    loadData();
+    loadStats();
+    
+    // Simulate CIF processing
+    document.getElementById('simulateForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const processingType = document.getElementById('processingType').value;
+        const recordCount = parseInt(document.getElementById('recordCount').value);
+        const filterRate = parseInt(document.getElementById('filterRate').value) / 100;
+        
+        showProgress();
+        
+        try {
+            const response = await fetch(`${apiBase}/api/NetworkRail/process`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ processingType, recordCount, filterRate })
+            });
+            
+            const result = await response.json();
+            displayResults(result);
+            loadStats();
+            loadData();
+        } catch (err) {
+            displayResults({ 
+                success: false, 
+                message: 'Processing failed: ' + err.message
+            });
+        }
+        
+        hideProgress();
+    });
+    
+    // Simulate CIF download
+    document.getElementById('downloadCifBtn').addEventListener('click', async function() {
+        try {
+            const response = await fetch(`${apiBase}/api/NetworkRail/download`, {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            alert(`CIF Download Simulated!\n\nFile: ${result.fileName}\nSize: ${result.fileSize}\nRecords: ${result.recordCount}\nTimestamp: ${result.timestamp}`);
+        } catch (err) {
+            alert('Failed to simulate download: ' + err.message);
+        }
+    });
+    
+    // Clear schedules
+    document.getElementById('clearSchedulesBtn').addEventListener('click', async function() {
+        if (confirm('Clear all schedule data?')) {
+            try {
+                await fetch(`${apiBase}/api/NetworkRail/clear`, { method: 'POST' });
+                loadStats();
+                loadData();
+            } catch (err) {
+                alert('Failed to clear: ' + err.message);
+            }
+        }
+    });
+    
+    // Refresh data
+    document.getElementById('refreshDataBtn').addEventListener('click', function() {
+        loadData();
+        loadStats();
+    });
+    
+    async function loadStats() {
+        try {
+            const response = await fetch(`${apiBase}/api/NetworkRail/stats`);
+            const stats = await response.json();
+            
+            document.getElementById('totalSchedules').textContent = stats.totalSchedules || allData.length;
+            document.getElementById('emuCount').textContent = stats.emuCount || allData.filter(x => x.powerType === 'EMU').length;
+            document.getElementById('dmuCount').textContent = stats.dmuCount || allData.filter(x => x.powerType === 'DMU').length;
+            document.getElementById('hstCount').textContent = stats.hstCount || allData.filter(x => x.powerType === 'HST').length;
+        } catch (err) {
+            console.error('Failed to load stats', err);
+            // Calculate from loaded data if stats endpoint fails
+            if (allData.length > 0) {
+                document.getElementById('totalSchedules').textContent = allData.length;
+                document.getElementById('emuCount').textContent = allData.filter(x => x.powerType === 'EMU').length;
+                document.getElementById('dmuCount').textContent = allData.filter(x => x.powerType === 'DMU').length;
+                document.getElementById('hstCount').textContent = allData.filter(x => x.powerType === 'HST').length;
+            }
+        }
     }
     
     async function loadData() {
         try {
-            const response = await fetch('/api/NetworkRail');
+            const response = await fetch(`${apiBase}/api/NetworkRail`);
             allData = await response.json();
+            updateLocalStats();
+            populateFilterDropdowns();
             renderTable();
         } catch (error) {
             console.error('Error loading data:', error);
@@ -113,31 +416,54 @@
         }
     }
     
+    function populateFilterDropdowns() {
+        const operators = [...new Set(allData.map(x => x.operator))].sort();
+        const classes = [...new Set(allData.map(x => x.trainClass))].sort();
+        const powerTypes = [...new Set(allData.map(x => x.powerType))].sort();
+        
+        populateSelect('filterOperator', operators, 'All Operators');
+        populateSelect('filterClass', classes, 'All Classes');
+        populateSelect('filterPowerType', powerTypes, 'All Power Types');
+    }
+    
+    function populateSelect(id, values, defaultLabel) {
+        const select = document.getElementById(id);
+        const currentValue = select.value;
+        select.innerHTML = `<option value="">${defaultLabel}</option>` + 
+            values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+        select.value = currentValue;
+    }
+    
+    function updateLocalStats() {
+        document.getElementById('totalSchedules').textContent = allData.length;
+        document.getElementById('emuCount').textContent = allData.filter(x => x.powerType === 'EMU').length;
+        document.getElementById('dmuCount').textContent = allData.filter(x => x.powerType === 'DMU').length;
+        document.getElementById('hstCount').textContent = allData.filter(x => x.powerType === 'HST').length;
+    }
+    
     function renderTable() {
         const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+        const operatorFilter = document.getElementById('filterOperator').value;
+        const classFilter = document.getElementById('filterClass').value;
+        const powerTypeDropdownFilter = document.getElementById('filterPowerType').value;
+        
         let filteredData = allData.filter(item => {
+            // Apply power type filter from stat cards
+            if (powerTypeFilter !== 'ALL' && item.powerType !== powerTypeFilter) {
+                return false;
+            }
+            // Apply dropdown filters
+            if (operatorFilter && item.operator !== operatorFilter) return false;
+            if (classFilter && item.trainClass !== classFilter) return false;
+            if (powerTypeDropdownFilter && item.powerType !== powerTypeDropdownFilter) return false;
+            
+            // Apply search filter
             return (
                 item.trainServiceNumber.toLowerCase().includes(searchTerm) ||
                 item.operator.toLowerCase().includes(searchTerm) ||
                 item.trainClass.toLowerCase().includes(searchTerm) ||
-                item.powerType.toLowerCase().includes(searchTerm) ||
-                item.trainCategory.toLowerCase().includes(searchTerm)
+                item.powerType.toLowerCase().includes(searchTerm)
             );
-        });
-        
-        // Sort data
-        filteredData.sort((a, b) => {
-            let aVal = a[sortColumn] || '';
-            let bVal = b[sortColumn] || '';
-            
-            if (sortColumn === 'travelDate') {
-                aVal = new Date(aVal);
-                bVal = new Date(bVal);
-            }
-            
-            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-            return 0;
         });
         
         document.getElementById('record-count').textContent = `${filteredData.length} records`;
@@ -150,19 +476,22 @@
         
         tbody.innerHTML = filteredData.map(item => {
             const travelDate = new Date(item.travelDate).toLocaleDateString();
-            const locationCount = item.scheduleLocations.length;
+            const locationCount = item.scheduleLocations?.length || 0;
             
             return `
                 <tr>
                     <td><strong>${escapeHtml(item.trainServiceNumber)}</strong></td>
-                    <td>${escapeHtml(travelDate)}</td>
+                    <td>${travelDate}</td>
                     <td>${escapeHtml(item.operator)}</td>
                     <td><span class="badge bg-info">${escapeHtml(item.trainClass)}</span></td>
                     <td><span class="badge bg-secondary">${escapeHtml(item.powerType)}</span></td>
                     <td><span class="badge bg-primary">${locationCount} stops</span></td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary" onclick="viewDetails('${escapeHtml(item.id)}')">
-                            <i class="bi bi-eye"></i> View
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="viewDetails('${escapeHtml(item.id)}')">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-info" onclick="viewProtobuf('${escapeHtml(item.id)}')">
+                            <i class="bi bi-file-binary"></i>
                         </button>
                     </td>
                 </tr>
@@ -170,20 +499,26 @@
         }).join('');
     }
     
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
     function viewDetails(id) {
         const item = allData.find(x => x.id === id);
         if (!item) return;
         
-        const scheduleLocations = item.scheduleLocations.map((loc, idx) => `
+        const scheduleLocations = item.scheduleLocations?.map((loc, idx) => `
             <tr>
                 <td>${idx + 1}</td>
                 <td><strong>${loc.locationName}</strong><br><small class="text-muted">${loc.locationCode}</small></td>
-                <td>${loc.scheduledArrivalTime || '<span class="text-muted">—</span>'}</td>
-                <td>${loc.scheduledDepartureTime || '<span class="text-muted">—</span>'}</td>
+                <td>${loc.scheduledArrivalTime || '-'}</td>
+                <td>${loc.scheduledDepartureTime || '-'}</td>
                 <td>${loc.platform}</td>
                 <td><span class="badge bg-secondary">${loc.activity}</span></td>
             </tr>
-        `).join('');
+        `).join('') || '<tr><td colspan="6">No locations</td></tr>';
         
         document.getElementById('detailContent').innerHTML = `
             <div class="row mb-4">
@@ -208,73 +543,139 @@
                     <p><span class="badge bg-secondary">${item.powerType}</span></p>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="fw-bold">Train Category:</label>
-                    <p><span class="badge bg-dark">${item.trainCategory}</span></p>
-                </div>
-                <div class="col-md-6 mb-3">
                     <label class="fw-bold">CIF STP Indicator:</label>
                     <p><code>${item.cifStpIndicator}</code></p>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <label class="fw-bold">Valid Period:</label>
-                    <p>${new Date(item.validFrom).toLocaleDateString()} - ${new Date(item.validTo).toLocaleDateString()}</p>
-                </div>
-                <div class="col-12 mb-3">
-                    <label class="fw-bold">Created At:</label>
-                    <p>${new Date(item.createdAt).toLocaleString()}</p>
-                </div>
             </div>
-            
-            <div class="row">
-                <div class="col-12">
-                    <h5 class="mb-3"><i class="bi bi-geo-alt"></i> Schedule Locations (${item.scheduleLocations.length} stops)</h5>
-                    <div class="table-responsive">
-                        <table class="table table-sm table-bordered table-hover">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>#</th>
-                                    <th>Location</th>
-                                    <th>Arrival</th>
-                                    <th>Departure</th>
-                                    <th>Platform</th>
-                                    <th>Activity</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${scheduleLocations}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+            <h5 class="mb-3"><i class="bi bi-geo-alt"></i> Schedule Locations</h5>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered">
+                    <thead class="table-light">
+                        <tr><th>#</th><th>Location</th><th>Arrival</th><th>Departure</th><th>Platform</th><th>Activity</th></tr>
+                    </thead>
+                    <tbody>${scheduleLocations}</tbody>
+                </table>
             </div>
         `;
         
         new bootstrap.Modal(document.getElementById('detailModal')).show();
     }
     
-    // Event listeners
-    document.getElementById('searchBox').addEventListener('input', renderTable);
-    
-    document.querySelectorAll('.sortable').forEach(th => {
-        th.addEventListener('click', function() {
-            const column = this.dataset.column;
-            if (sortColumn === column) {
-                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-            } else {
-                sortColumn = column;
-                sortDirection = 'asc';
+    function viewProtobuf(id) {
+        const item = allData.find(x => x.id === id);
+        if (!item) return;
+        
+        const protobufEvent = {
+            trainServiceNumber: item.trainServiceNumber,
+            travelDate: item.travelDate,
+            origin: item.scheduleLocations?.[0]?.locationCode || 'UNKNOWN',
+            destination: item.scheduleLocations?.[item.scheduleLocations.length - 1]?.locationCode || 'UNKNOWN',
+            passagePoints: item.scheduleLocations?.map(loc => ({
+                locationCode: loc.locationCode,
+                locationName: loc.locationName,
+                arrivalTime: loc.scheduledArrivalTime,
+                departureTime: loc.scheduledDepartureTime
+            })) || [],
+            metadata: {
+                domain: 'network-rail',
+                name: 'InfrastructurePathwayConfirmed',
+                correlationId: crypto.randomUUID()
             }
-            
-            // Update sort indicators
-            document.querySelectorAll('.sortable i').forEach(i => {
-                i.className = 'bi bi-arrow-down-up';
-            });
-            this.querySelector('i').className = sortDirection === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
-            
-            renderTable();
-        });
-    });
+        };
+        
+        document.getElementById('protobufContent').textContent = JSON.stringify(protobufEvent, null, 2);
+        new bootstrap.Modal(document.getElementById('protobufModal')).show();
+    }
     
-    loadData();
+    function showProgress() {
+        const card = document.getElementById('progressCard');
+        const bar = document.getElementById('progressBar');
+        card.style.display = 'block';
+        bar.style.width = '100%';
+        bar.textContent = 'Processing...';
+        
+        ['step1Status', 'step2Status', 'step3Status', 'step4Status', 'step5Status', 'step6Status'].forEach(id => {
+            document.getElementById(id).className = 'badge bg-warning text-dark';
+        });
+    }
+    
+    function hideProgress() {
+        document.getElementById('progressCard').style.display = 'none';
+    }
+    
+    function displayResults(result) {
+        const container = document.getElementById('resultsContainer');
+        
+        if (!result.success && result.message) {
+            container.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle"></i> ${result.message}
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = `
+            <div class="alert alert-success">
+                <strong>${result.processingType} Processing Complete</strong><br>
+                Duration: ${result.duration || 'N/A'}
+            </div>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card border-primary">
+                        <div class="card-body text-center">
+                            <h4 class="text-primary">${result.totalRecords}</h4>
+                            <small>Total Records</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-success">
+                        <div class="card-body text-center">
+                            <h4 class="text-success">${result.publishedCount}</h4>
+                            <small>Published</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-warning">
+                        <div class="card-body text-center">
+                            <h4 class="text-warning">${result.filteredCount}</h4>
+                            <small>Filtered Out</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-info">
+                        <div class="card-body text-center">
+                            <h4 class="text-info">${result.fileSize || 'N/A'}</h4>
+                            <small>File Size</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    document.getElementById('searchBox').addEventListener('input', renderTable);
+    document.getElementById('filterOperator').addEventListener('change', renderTable);
+    document.getElementById('filterClass').addEventListener('change', renderTable);
+    document.getElementById('filterPowerType').addEventListener('change', renderTable);
+    
+    document.getElementById('clearFiltersBtn').addEventListener('click', function() {
+        document.getElementById('searchBox').value = '';
+        document.getElementById('filterOperator').value = '';
+        document.getElementById('filterClass').value = '';
+        document.getElementById('filterPowerType').value = '';
+        // Reset stat card filter
+        powerTypeFilter = 'ALL';
+        document.querySelectorAll('.stat-card').forEach(c => {
+            c.classList.remove('border', 'border-4', 'border-dark');
+            c.style.opacity = '0.7';
+        });
+        document.querySelector('.stat-card[data-filter="ALL"]').classList.add('border', 'border-4', 'border-dark');
+        document.querySelector('.stat-card[data-filter="ALL"]').style.opacity = '1';
+        renderTable();
+    });
 </script>
 }

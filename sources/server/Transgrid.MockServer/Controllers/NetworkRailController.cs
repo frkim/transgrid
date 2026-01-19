@@ -9,6 +9,10 @@ namespace Transgrid.MockServer.Controllers;
 public class NetworkRailController : ControllerBase
 {
     private readonly DataStore _dataStore;
+    private static DateTime _lastRunTime = DateTime.MinValue;
+    private static int _filesProcessed = 0;
+    private static int _totalPublished = 0;
+    private static int _totalFiltered = 0;
 
     public NetworkRailController(DataStore dataStore)
     {
@@ -19,6 +23,162 @@ public class NetworkRailController : ControllerBase
     public ActionResult<List<CifSchedule>> GetAll()
     {
         return Ok(_dataStore.GetCifSchedules());
+    }
+
+    /// <summary>
+    /// Get statistics for the Network Rail demo page
+    /// </summary>
+    [HttpGet("stats")]
+    public ActionResult GetStats()
+    {
+        var schedules = _dataStore.GetCifSchedules();
+        return Ok(new
+        {
+            filesProcessedLast24Hours = _filesProcessed,
+            schedulesPublished = schedules.Count,
+            schedulesFiltered = _totalFiltered,
+            lastRunTime = _lastRunTime == DateTime.MinValue ? null : (DateTime?)_lastRunTime,
+            totalRecords = schedules.Count
+        });
+    }
+
+    /// <summary>
+    /// Simulate CIF file processing workflow
+    /// </summary>
+    [HttpPost("process")]
+    public ActionResult SimulateProcess([FromBody] CifProcessRequest request)
+    {
+        var startTime = DateTime.UtcNow;
+        var random = new Random();
+        
+        // Calculate how many records to publish vs filter
+        var totalRecords = request.RecordCount;
+        var filteredCount = (int)(totalRecords * request.FilterRate);
+        var publishedCount = totalRecords - filteredCount;
+
+        // Generate new schedules
+        var operators = new[] { "Avanti West Coast", "LNER", "GWR", "CrossCountry", "ScotRail", "Northern", "TransPennine", "Southeastern" };
+        var powerTypes = new[] { "EMU", "DMU", "Electric", "Diesel", "HST" };
+        var trainClasses = new[] { "Express", "Regional", "Commuter", "Intercity", "Local" };
+
+        for (var i = 0; i < publishedCount; i++)
+        {
+            var schedule = new CifSchedule
+            {
+                Id = Guid.NewGuid().ToString(),
+                TrainServiceNumber = $"{random.Next(1, 9)}{random.Next(100, 999):D3}",
+                TravelDate = DateTime.UtcNow.Date.AddDays(random.Next(0, 7)),
+                Operator = operators[random.Next(operators.Length)],
+                TrainClass = trainClasses[random.Next(trainClasses.Length)],
+                PowerType = powerTypes[random.Next(powerTypes.Length)],
+                TrainCategory = "OO",
+                CifStpIndicator = "N",
+                ValidFrom = DateTime.UtcNow.Date,
+                ValidTo = DateTime.UtcNow.Date.AddMonths(3),
+                CreatedAt = DateTime.UtcNow,
+                ScheduleLocations = GenerateScheduleLocations(random)
+            };
+            
+            _dataStore.AddCifSchedule(schedule);
+        }
+
+        _lastRunTime = DateTime.UtcNow;
+        _filesProcessed++;
+        _totalPublished += publishedCount;
+        _totalFiltered += filteredCount;
+
+        return Ok(new
+        {
+            success = true,
+            processingType = request.ProcessingType,
+            totalRecords,
+            publishedCount,
+            filteredCount,
+            fileSize = $"{(totalRecords * 0.5):F1} KB",
+            duration = $"{(DateTime.UtcNow - startTime).TotalSeconds:F2}s"
+        });
+    }
+
+    /// <summary>
+    /// Simulate CIF file download
+    /// </summary>
+    [HttpPost("download")]
+    public ActionResult SimulateDownload()
+    {
+        var random = new Random();
+        var recordCount = random.Next(50, 200);
+        
+        return Ok(new
+        {
+            fileName = $"toc-full.CIF.gz",
+            fileSize = $"{(recordCount * 0.5):F1} KB",
+            recordCount,
+            timestamp = DateTime.UtcNow.ToString("O"),
+            source = "https://datafeeds.networkrail.co.uk/ntrod/CifFileAuthenticate"
+        });
+    }
+
+    /// <summary>
+    /// Clear all schedule data
+    /// </summary>
+    [HttpPost("clear")]
+    public ActionResult ClearSchedules()
+    {
+        var schedules = _dataStore.GetCifSchedules().ToList();
+        foreach (var schedule in schedules)
+        {
+            _dataStore.DeleteCifSchedule(schedule.Id);
+        }
+
+        _totalFiltered = 0;
+        _totalPublished = 0;
+
+        return Ok(new { message = "All schedules cleared", count = schedules.Count });
+    }
+
+    private List<ScheduleLocation> GenerateScheduleLocations(Random random)
+    {
+        var stations = new[]
+        {
+            ("EUSTON", "London Euston"),
+            ("KNGX", "London King's Cross"),
+            ("PADTON", "London Paddington"),
+            ("VICTRIA", "London Victoria"),
+            ("STPX", "London St Pancras"),
+            ("BHAM", "Birmingham New Street"),
+            ("MNCRPIC", "Manchester Piccadilly"),
+            ("LEEDS", "Leeds"),
+            ("EDINBUR", "Edinburgh Waverley"),
+            ("GLGC", "Glasgow Central"),
+            ("BRSTLTM", "Bristol Temple Meads"),
+            ("CRDFCNT", "Cardiff Central")
+        };
+
+        var count = random.Next(3, 8);
+        var selectedStations = stations.OrderBy(_ => random.Next()).Take(count).ToList();
+        var locations = new List<ScheduleLocation>();
+        var currentTime = new TimeSpan(random.Next(5, 22), random.Next(0, 60), 0);
+
+        for (var i = 0; i < selectedStations.Count; i++)
+        {
+            var station = selectedStations[i];
+            var isFirst = i == 0;
+            var isLast = i == selectedStations.Count - 1;
+
+            locations.Add(new ScheduleLocation
+            {
+                LocationCode = station.Item1,
+                LocationName = station.Item2,
+                ScheduledArrivalTime = isFirst ? string.Empty : currentTime.ToString(@"hh\:mm"),
+                ScheduledDepartureTime = isLast ? string.Empty : currentTime.Add(TimeSpan.FromMinutes(random.Next(1, 5))).ToString(@"hh\:mm"),
+                Platform = random.Next(1, 15).ToString(),
+                Activity = isFirst ? "TB" : (isLast ? "TF" : "T")
+            });
+
+            currentTime = currentTime.Add(TimeSpan.FromMinutes(random.Next(15, 45)));
+        }
+
+        return locations;
     }
 
     [HttpGet("{id}")]

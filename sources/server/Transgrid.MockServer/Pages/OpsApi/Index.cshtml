@@ -10,6 +10,42 @@
     </h1>
 </div>
 
+<!-- Stats Row - Clickable Filters -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white stat-card" data-filter="ALL" role="button" style="cursor: pointer;">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-collection"></i> Total</h5>
+                <h2 id="totalCount">-</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white stat-card" data-filter="ACTIVE" role="button" style="cursor: pointer;">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-check-circle"></i> Active</h5>
+                <h2 id="activeCount">-</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark stat-card" data-filter="DELAYED" role="button" style="cursor: pointer;">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-clock-history"></i> Delayed</h5>
+                <h2 id="delayedCount">-</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white stat-card" data-filter="CANCELLED" role="button" style="cursor: pointer;">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-x-circle"></i> Cancelled</h5>
+                <h2 id="cancelledCount">-</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card shadow-lg mb-4">
     <div class="card-header bg-gradient text-white">
         <div class="row align-items-center">
@@ -22,9 +58,38 @@
         </div>
     </div>
     <div class="card-body">
-        <div class="input-group">
-            <span class="input-group-text"><i class="bi bi-funnel"></i></span>
-            <input type="text" id="searchBox" class="form-control" placeholder="Search by service code, origin, destination, pathway...">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" id="searchBox" class="form-control" placeholder="Search...">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <select id="filterPathway" class="form-select">
+                    <option value="">All Pathways</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select id="filterOrigin" class="form-select">
+                    <option value="">All Origins</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select id="filterDestination" class="form-select">
+                    <option value="">All Destinations</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select id="filterCountry" class="form-select">
+                    <option value="">All Countries</option>
+                </select>
+            </div>
+        </div>
+        <div class="mt-2">
+            <button class="btn btn-sm btn-outline-secondary" id="clearFiltersBtn">
+                <i class="bi bi-x-circle"></i> Clear All Filters
+            </button>
         </div>
     </div>
 </div>
@@ -98,6 +163,7 @@
     let allData = [];
     let sortColumn = 'serviceCode';
     let sortDirection = 'asc';
+    let activeFilter = 'ALL';
     
     // HTML escape function to prevent XSS
     function escapeHtml(text) {
@@ -110,6 +176,8 @@
         try {
             const response = await fetch('/api/OpsApi');
             allData = await response.json();
+            updateStats();
+            populateFilterDropdowns();
             renderTable();
         } catch (error) {
             console.error('Error loading data:', error);
@@ -118,9 +186,75 @@
         }
     }
     
+    function populateFilterDropdowns() {
+        const pathways = [...new Set(allData.map(x => x.pathway))].sort();
+        const origins = [...new Set(allData.map(x => x.origin))].sort();
+        const destinations = [...new Set(allData.map(x => x.destination))].sort();
+        const countries = [...new Set(allData.map(x => x.country))].sort();
+        
+        populateSelect('filterPathway', pathways, 'All Pathways');
+        populateSelect('filterOrigin', origins, 'All Origins');
+        populateSelect('filterDestination', destinations, 'All Destinations');
+        populateSelect('filterCountry', countries, 'All Countries');
+    }
+    
+    function populateSelect(id, values, defaultLabel) {
+        const select = document.getElementById(id);
+        const currentValue = select.value;
+        select.innerHTML = `<option value="">${defaultLabel}</option>` + 
+            values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+        select.value = currentValue;
+    }
+    
+    function updateStats() {
+        const total = allData.length;
+        const active = allData.filter(x => x.status === 'ACTIVE').length;
+        const delayed = allData.filter(x => x.status === 'DELAYED').length;
+        const cancelled = allData.filter(x => x.status === 'CANCELLED').length;
+        
+        document.getElementById('totalCount').textContent = total;
+        document.getElementById('activeCount').textContent = active;
+        document.getElementById('delayedCount').textContent = delayed;
+        document.getElementById('cancelledCount').textContent = cancelled;
+    }
+    
+    function setFilter(filter) {
+        activeFilter = filter;
+        
+        // Update card styles to show active state
+        document.querySelectorAll('.stat-card').forEach(card => {
+            card.classList.remove('border', 'border-4', 'border-dark');
+            card.style.opacity = '0.7';
+        });
+        
+        const activeCard = document.querySelector(`.stat-card[data-filter="${filter}"]`);
+        if (activeCard) {
+            activeCard.classList.add('border', 'border-4', 'border-dark');
+            activeCard.style.opacity = '1';
+        }
+        
+        renderTable();
+    }
+    
     function renderTable() {
         const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+        const pathwayFilter = document.getElementById('filterPathway').value;
+        const originFilter = document.getElementById('filterOrigin').value;
+        const destinationFilter = document.getElementById('filterDestination').value;
+        const countryFilter = document.getElementById('filterCountry').value;
+        
         let filteredData = allData.filter(item => {
+            // Apply status filter from stat cards
+            if (activeFilter !== 'ALL' && item.status !== activeFilter) {
+                return false;
+            }
+            // Apply dropdown filters
+            if (pathwayFilter && item.pathway !== pathwayFilter) return false;
+            if (originFilter && item.origin !== originFilter) return false;
+            if (destinationFilter && item.destination !== destinationFilter) return false;
+            if (countryFilter && item.country !== countryFilter) return false;
+            
+            // Apply search filter
             return (
                 item.serviceCode.toLowerCase().includes(searchTerm) ||
                 item.pathway.toLowerCase().includes(searchTerm) ||
@@ -244,6 +378,19 @@
     
     // Event listeners
     document.getElementById('searchBox').addEventListener('input', renderTable);
+    document.getElementById('filterPathway').addEventListener('change', renderTable);
+    document.getElementById('filterOrigin').addEventListener('change', renderTable);
+    document.getElementById('filterDestination').addEventListener('change', renderTable);
+    document.getElementById('filterCountry').addEventListener('change', renderTable);
+    
+    document.getElementById('clearFiltersBtn').addEventListener('click', function() {
+        document.getElementById('searchBox').value = '';
+        document.getElementById('filterPathway').value = '';
+        document.getElementById('filterOrigin').value = '';
+        document.getElementById('filterDestination').value = '';
+        document.getElementById('filterCountry').value = '';
+        setFilter('ALL');
+    });
     
     document.querySelectorAll('.sortable').forEach(th => {
         th.addEventListener('click', function() {
@@ -265,6 +412,15 @@
         });
     });
     
-    loadData();
+    // Stat card click handlers for filtering
+    document.querySelectorAll('.stat-card').forEach(card => {
+        card.addEventListener('click', function() {
+            const filter = this.dataset.filter;
+            setFilter(filter);
+        });
+    });
+    
+    // Initialize with ALL filter active
+    loadData().then(() => setFilter('ALL'));
 </script>
 }

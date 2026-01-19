@@ -15,7 +15,7 @@
     <!-- Stats Row -->
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="card bg-primary text-white">
+            <div class="card bg-primary text-white stat-card" data-filter="ALL" role="button" style="cursor: pointer;">
                 <div class="card-body">
                     <h5 class="card-title"><i class="bi bi-graph-up"></i> Total Exports (24h)</h5>
                     <h2 id="totalExports">-</h2>
@@ -23,7 +23,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-success text-white">
+            <div class="card bg-success text-white stat-card" data-filter="SUCCESS" role="button" style="cursor: pointer;">
                 <div class="card-body">
                     <h5 class="card-title"><i class="bi bi-check-circle"></i> Successful</h5>
                     <h2 id="successfulExports">-</h2>
@@ -31,7 +31,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-danger text-white">
+            <div class="card bg-danger text-white stat-card" data-filter="FAILED" role="button" style="cursor: pointer;">
                 <div class="card-body">
                     <h5 class="card-title"><i class="bi bi-x-circle"></i> Failed</h5>
                     <h2 id="failedExports">-</h2>
@@ -39,7 +39,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-warning text-dark">
+            <div class="card bg-warning text-dark stat-card" data-filter="PENDING" role="button" style="cursor: pointer;">
                 <div class="card-body">
                     <h5 class="card-title"><i class="bi bi-arrow-repeat"></i> Pending Retry</h5>
                     <h2 id="pendingRetries">-</h2>
@@ -384,6 +384,7 @@
 <script>
     // Use relative URL for API calls (same origin) - Fixed 20260119-v2
     const apiBase = '';
+    let historyFilter = 'ALL';
     
     // Set default date to today
     document.getElementById('travelDate').valueAsDate = new Date();
@@ -397,6 +398,28 @@
     document.getElementById('failureRate').addEventListener('input', function() {
         document.getElementById('failureRateValue').textContent = this.value + '%';
     });
+    
+    // Stat card click handlers for filtering history
+    document.querySelectorAll('.stat-card').forEach(card => {
+        card.addEventListener('click', function() {
+            historyFilter = this.dataset.filter;
+            
+            // Update card styles to show active state
+            document.querySelectorAll('.stat-card').forEach(c => {
+                c.classList.remove('border', 'border-4', 'border-dark');
+                c.style.opacity = '0.7';
+            });
+            this.classList.add('border', 'border-4', 'border-dark');
+            this.style.opacity = '1';
+            
+            loadHistory();
+        });
+    });
+    
+    // Initialize with ALL filter
+    document.querySelector('.stat-card[data-filter="ALL"]').classList.add('border', 'border-4', 'border-dark');
+    document.querySelector('.stat-card[data-filter="ALL"]').style.opacity = '1';
+    document.querySelectorAll('.stat-card:not([data-filter="ALL"])').forEach(c => c.style.opacity = '0.7');
     
     // Load initial stats
     loadStats();
@@ -598,9 +621,23 @@
     async function loadHistory() {
         try {
             const response = await fetch(`${apiBase}/api/RneExport/history?limit=10`);
-            const history = await response.json();
+            let history = await response.json();
+            
+            // Apply filter based on selected stat card
+            if (historyFilter === 'SUCCESS') {
+                history = history.filter(h => h.failedExports === 0);
+            } else if (historyFilter === 'FAILED') {
+                history = history.filter(h => h.failedExports > 0);
+            } else if (historyFilter === 'PENDING') {
+                history = history.filter(h => h.exportType === 'RETRY');
+            }
             
             const tbody = document.getElementById('historyTable');
+            if (history.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No matching exports found</td></tr>';
+                return;
+            }
+            
             tbody.innerHTML = history.map(h => `
                 <tr>
                     <td>${new Date(h.executedAt).toLocaleString()}</td>

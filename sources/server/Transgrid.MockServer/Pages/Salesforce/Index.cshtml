@@ -4,87 +4,276 @@
     ViewData["Title"] = "Salesforce - Negotiated Rates";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="gradient-text">
-        <i class="bi bi-briefcase"></i> Salesforce - Negotiated Rates
-    </h1>
-</div>
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="display-5"><i class="bi bi-briefcase"></i> Salesforce Negotiated Rates Export</h1>
+            <p class="lead text-muted">Simulate the Logic Apps workflow for Salesforce negotiated rates extraction (Use Case 2)</p>
+        </div>
+    </div>
 
-<div class="card shadow-lg mb-4">
-    <div class="card-header bg-gradient text-white">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <i class="bi bi-search"></i> Search & Filter
+    <!-- Stats Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white stat-card" data-filter="ALL" role="button" style="cursor: pointer;">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-collection"></i> Total Records</h5>
+                    <h2 id="totalRecords">-</h2>
+                </div>
             </div>
-            <div class="col-md-4 text-end">
-                <span id="record-count" class="badge bg-light text-dark">0 records</span>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark stat-card" data-filter="Pending" role="button" style="cursor: pointer;">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-hourglass"></i> Pending Extract</h5>
+                    <h2 id="pendingRecords">-</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white stat-card" data-filter="Extracted" role="button" style="cursor: pointer;">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-check-circle"></i> Extracted</h5>
+                    <h2 id="extractedRecords">-</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white stat-card" data-filter="Failed" role="button" style="cursor: pointer;">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-x-circle"></i> Failed</h5>
+                    <h2 id="failedRecords">-</h2>
+                </div>
             </div>
         </div>
     </div>
-    <div class="card-body">
-        <div class="input-group">
-            <span class="input-group-text"><i class="bi bi-funnel"></i></span>
-            <input type="text" id="searchBox" class="form-control" placeholder="Search by account name, unique code, code type, GDS, distributor...">
-        </div>
-    </div>
-</div>
 
-<div class="card shadow-lg">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover table-striped" id="dataTable">
-                <thead class="table-dark">
-                    <tr>
-                        <th class="sortable" data-column="accountName">
-                            Account Name <i class="bi bi-arrow-down-up"></i>
-                        </th>
-                        <th class="sortable" data-column="uniqueCode">
-                            Unique Code <i class="bi bi-arrow-down-up"></i>
-                        </th>
-                        <th class="sortable" data-column="codeRecordType">
-                            Type <i class="bi bi-arrow-down-up"></i>
-                        </th>
-                        <th class="sortable" data-column="road">
-                            Road <i class="bi bi-arrow-down-up"></i>
-                        </th>
-                        <th class="sortable" data-column="priority">
-                            Priority <i class="bi bi-arrow-down-up"></i>
-                        </th>
-                        <th class="sortable" data-column="b2bStatus">
-                            Status <i class="bi bi-arrow-down-up"></i>
-                        </th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                    <tr>
-                        <td colspan="7" class="text-center">
-                            <div class="spinner-border text-success" role="status">
-                                <span class="visually-hidden">Loading...</span>
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Simulation Panel -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <i class="bi bi-play-circle"></i> Extract Simulation
+                </div>
+                <div class="card-body">
+                    <form id="simulateForm">
+                        <div class="mb-3">
+                            <label for="extractRoute" class="form-label">Extract Route</label>
+                            <select class="form-select" id="extractRoute">
+                                <option value="ALL">All Routes (Parallel)</option>
+                                <option value="IDL_S3">Route 1: IDL/S3 (Internal)</option>
+                                <option value="GDS_AIR">Route 2: GDS Air (Amadeus/Galileo/Sabre)</option>
+                                <option value="BENE">Route 3: BeNe (External Partners)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="priority" class="form-label">Priority Filter</label>
+                            <select class="form-select" id="priority">
+                                <option value="ALL">All</option>
+                                <option value="Priority">Priority Only</option>
+                                <option value="Normal">Normal Only</option>
+                            </select>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="simulateFailures">
+                            <label class="form-check-label" for="simulateFailures">Simulate Failures</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-lightning"></i> Run Extract
+                        </button>
+                    </form>
+                    
+                    <hr>
+                    
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-info" id="triggerPlatformEventBtn">
+                            <i class="bi bi-broadcast"></i> Simulate Platform Event
+                        </button>
+                        <button class="btn btn-outline-warning" id="resetStatusBtn">
+                            <i class="bi bi-arrow-counterclockwise"></i> Reset All to Pending
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scatter-Gather Info -->
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <i class="bi bi-diagram-2"></i> Scatter-Gather Pattern
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">
+                        This workflow uses the scatter-gather pattern to process three extract routes in parallel:
+                    </p>
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <td><span class="badge bg-primary">Route 1</span></td>
+                                <td>IDL/S3 Internal Distribution</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-success">Route 2</span></td>
+                                <td>GDS Air (Travel Agents)</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-warning text-dark">Route 3</span></td>
+                                <td>BeNe External Partners</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Salesforce Connection Info -->
+            <div class="card mt-3">
+                <div class="card-header bg-secondary text-white">
+                    <i class="bi bi-cloud-check"></i> Salesforce Integration
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">
+                        Integration points with Salesforce:
+                    </p>
+                    <ul class="small mb-0">
+                        <li><strong>Platform Event:</strong> NegotiatedRateExtract__e</li>
+                        <li><strong>APEX Service:</strong> getNegotiatedRateExtracts</li>
+                        <li><strong>Object:</strong> Negotiated_Rate__c</li>
+                        <li><strong>Auth:</strong> OAuth 2.0 JWT Bearer</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div class="col-md-8">
+            <!-- Extract Progress -->
+            <div id="progressCard" class="card mb-3" style="display: none;">
+                <div class="card-header">
+                    <i class="bi bi-hourglass-split"></i> Extract In Progress
+                </div>
+                <div class="card-body">
+                    <div class="progress mb-2" style="height: 25px;">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%">0%</div>
+                    </div>
+                    <div class="row text-center" id="routeProgress">
+                        <div class="col-4">
+                            <span class="badge bg-secondary" id="route1Status">IDL/S3: Waiting</span>
+                        </div>
+                        <div class="col-4">
+                            <span class="badge bg-secondary" id="route2Status">GDS Air: Waiting</span>
+                        </div>
+                        <div class="col-4">
+                            <span class="badge bg-secondary" id="route3Status">BeNe: Waiting</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Last Extract Results -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <i class="bi bi-journal-text"></i> Latest Extract Results
+                </div>
+                <div class="card-body" id="resultsContainer">
+                    <p class="text-muted">Run a simulation to see results...</p>
+                </div>
+            </div>
+
+            <!-- Data Grid -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-table"></i> Negotiated Rates Data</span>
+                    <div>
+                        <span id="record-count" class="badge bg-light text-dark me-2">0 records</span>
+                        <button class="btn btn-sm btn-outline-secondary" id="refreshDataBtn">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="text" id="searchBox" class="form-control" placeholder="Search...">
                             </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+                        </div>
+                        <div class="col-md-2">
+                            <select id="filterType" class="form-select form-select-sm">
+                                <option value="">All Types</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select id="filterRoad" class="form-select form-select-sm">
+                                <option value="">All Roads</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select id="filterPriority" class="form-select form-select-sm">
+                                <option value="">All Priorities</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-sm btn-outline-secondary w-100" id="clearFiltersBtn">
+                                <i class="bi bi-x-circle"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-dark sticky-top">
+                                <tr>
+                                    <th>Account</th>
+                                    <th>Unique Code</th>
+                                    <th>Type</th>
+                                    <th>Road</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                                <tr>
+                                    <td colspan="7" class="text-center">
+                                        <div class="spinner-border text-primary" role="status"></div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Detail Modal -->
-<div class="modal fade" id="detailModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-gradient text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-info-circle"></i> Negotiated Rate Details
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    <!-- Detail Modal -->
+    <div class="modal fade" id="detailModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title"><i class="bi bi-info-circle"></i> Negotiated Rate Details</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="detailContent"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
             </div>
-            <div class="modal-body" id="detailContent">
-                <!-- Content will be populated dynamically -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+    </div>
+
+    <!-- CSV Preview Modal -->
+    <div class="modal fade" id="csvModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-file-earmark-spreadsheet"></i> CSV Preview</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <pre id="csvContent" class="bg-dark text-light p-3" style="max-height: 500px; overflow: auto;"></pre>
+                </div>
             </div>
         </div>
     </div>
@@ -92,21 +281,123 @@
 
 @section Scripts {
 <script>
+    const apiBase = '';
     let allData = [];
-    let sortColumn = 'accountName';
-    let sortDirection = 'asc';
+    let statusFilter = 'ALL';
     
-    // HTML escape function to prevent XSS
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+    // Stat card click handlers for filtering
+    document.querySelectorAll('.stat-card').forEach(card => {
+        card.addEventListener('click', function() {
+            statusFilter = this.dataset.filter;
+            
+            // Update card styles to show active state
+            document.querySelectorAll('.stat-card').forEach(c => {
+                c.classList.remove('border', 'border-4', 'border-dark');
+                c.style.opacity = '0.7';
+            });
+            this.classList.add('border', 'border-4', 'border-dark');
+            this.style.opacity = '1';
+            
+            renderTable();
+        });
+    });
+    
+    // Initialize with ALL filter
+    document.querySelector('.stat-card[data-filter="ALL"]').classList.add('border', 'border-4', 'border-dark');
+    document.querySelector('.stat-card[data-filter="ALL"]').style.opacity = '1';
+    document.querySelectorAll('.stat-card:not([data-filter="ALL"])').forEach(c => c.style.opacity = '0.7');
+    
+    // Load initial data
+    loadData();
+    loadStats();
+    
+    // Simulate extract
+    document.getElementById('simulateForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const extractRoute = document.getElementById('extractRoute').value;
+        const priority = document.getElementById('priority').value;
+        const simulateFailures = document.getElementById('simulateFailures').checked;
+        
+        showProgress();
+        
+        try {
+            const response = await fetch(`${apiBase}/api/Salesforce/extract`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ extractRoute, priority, simulateFailures })
+            });
+            
+            const result = await response.json();
+            displayResults(result);
+            loadStats();
+            loadData();
+        } catch (err) {
+            displayResults({ 
+                success: false, 
+                message: 'Extract failed: ' + err.message,
+                routes: []
+            });
+        }
+        
+        hideProgress();
+    });
+    
+    // Trigger platform event simulation
+    document.getElementById('triggerPlatformEventBtn').addEventListener('click', async function() {
+        try {
+            const response = await fetch(`${apiBase}/api/Salesforce/platform-event`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ eventType: 'NegotiatedRateExtract__e' })
+            });
+            
+            const result = await response.json();
+            alert(`Platform Event Simulated!\n\nEvent: ${result.eventType}\nRecords Triggered: ${result.recordCount}\nTimestamp: ${result.timestamp}`);
+            loadStats();
+        } catch (err) {
+            alert('Failed to simulate platform event: ' + err.message);
+        }
+    });
+    
+    // Reset status
+    document.getElementById('resetStatusBtn').addEventListener('click', async function() {
+        if (confirm('Reset all records to Pending status?')) {
+            try {
+                await fetch(`${apiBase}/api/Salesforce/reset`, { method: 'POST' });
+                loadStats();
+                loadData();
+            } catch (err) {
+                alert('Failed to reset: ' + err.message);
+            }
+        }
+    });
+    
+    // Refresh data
+    document.getElementById('refreshDataBtn').addEventListener('click', function() {
+        loadData();
+        loadStats();
+    });
+    
+    async function loadStats() {
+        try {
+            const response = await fetch(`${apiBase}/api/Salesforce/stats`);
+            const stats = await response.json();
+            
+            document.getElementById('totalRecords').textContent = stats.totalRecords;
+            document.getElementById('pendingRecords').textContent = stats.pendingRecords;
+            document.getElementById('extractedRecords').textContent = stats.extractedRecords;
+            document.getElementById('failedRecords').textContent = stats.failedRecords;
+        } catch (err) {
+            console.error('Failed to load stats', err);
+        }
     }
     
     async function loadData() {
         try {
-            const response = await fetch('/api/Salesforce');
+            const response = await fetch(`${apiBase}/api/Salesforce`);
             allData = await response.json();
+            populateFilterDropdowns();
             renderTable();
         } catch (error) {
             console.error('Error loading data:', error);
@@ -115,28 +406,47 @@
         }
     }
     
+    function populateFilterDropdowns() {
+        const types = [...new Set(allData.map(x => x.codeRecordType))].sort();
+        const roads = [...new Set(allData.map(x => x.road))].sort();
+        const priorities = [...new Set(allData.map(x => x.priority))].sort();
+        
+        populateSelect('filterType', types, 'All Types');
+        populateSelect('filterRoad', roads, 'All Roads');
+        populateSelect('filterPriority', priorities, 'All Priorities');
+    }
+    
+    function populateSelect(id, values, defaultLabel) {
+        const select = document.getElementById(id);
+        const currentValue = select.value;
+        select.innerHTML = `<option value="">${defaultLabel}</option>` + 
+            values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+        select.value = currentValue;
+    }
+    
     function renderTable() {
         const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+        const typeFilter = document.getElementById('filterType').value;
+        const roadFilter = document.getElementById('filterRoad').value;
+        const priorityFilter = document.getElementById('filterPriority').value;
+        
         let filteredData = allData.filter(item => {
+            // Apply status filter from stat cards
+            if (statusFilter !== 'ALL' && item.b2bStatus !== statusFilter) {
+                return false;
+            }
+            // Apply dropdown filters
+            if (typeFilter && item.codeRecordType !== typeFilter) return false;
+            if (roadFilter && item.road !== roadFilter) return false;
+            if (priorityFilter && item.priority !== priorityFilter) return false;
+            
+            // Apply search filter
             return (
                 item.accountName.toLowerCase().includes(searchTerm) ||
-                item.accountManager.toLowerCase().includes(searchTerm) ||
                 item.uniqueCode.toLowerCase().includes(searchTerm) ||
                 item.codeRecordType.toLowerCase().includes(searchTerm) ||
-                (item.gdsUsed && item.gdsUsed.toLowerCase().includes(searchTerm)) ||
-                (item.distributor && item.distributor.toLowerCase().includes(searchTerm)) ||
                 item.road.toLowerCase().includes(searchTerm)
             );
-        });
-        
-        // Sort data
-        filteredData.sort((a, b) => {
-            let aVal = a[sortColumn] || '';
-            let bVal = b[sortColumn] || '';
-            
-            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-            return 0;
         });
         
         document.getElementById('record-count').textContent = `${filteredData.length} records`;
@@ -157,18 +467,24 @@
                 <tr>
                     <td><strong>${escapeHtml(item.accountName)}</strong><br><small class="text-muted">${escapeHtml(item.accountManager)}</small></td>
                     <td><code>${escapeHtml(item.uniqueCode)}</code></td>
-                    <td><span class="badge bg-info text-wrap text-start">${escapeHtml(item.codeRecordType)}</span></td>
+                    <td><span class="badge bg-info">${escapeHtml(item.codeRecordType)}</span></td>
                     <td>${escapeHtml(item.road)}</td>
                     <td>${priorityBadge}</td>
                     <td>${statusBadge}</td>
                     <td>
                         <button class="btn btn-sm btn-outline-primary" onclick="viewDetails('${escapeHtml(item.id)}')">
-                            <i class="bi bi-eye"></i> View
+                            <i class="bi bi-eye"></i>
                         </button>
                     </td>
                 </tr>
             `;
         }).join('');
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
     
     function getStatusBadge(status) {
@@ -194,10 +510,6 @@
               ).join('')
             : '<tr><td colspan="2" class="text-muted">No discounts</td></tr>';
         
-        const extractDate = item.b2bExtractDate 
-            ? new Date(item.b2bExtractDate).toLocaleString()
-            : '<span class="text-muted">Not extracted yet</span>';
-        
         document.getElementById('detailContent').innerHTML = `
             <div class="row">
                 <div class="col-md-6 mb-3">
@@ -221,40 +533,8 @@
                     <p>${item.road}</p>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="fw-bold">Priority:</label>
-                    <p>${item.priority === 'Priority' ? '<span class="badge bg-danger">Priority</span>' : '<span class="badge bg-secondary">Normal</span>'}</p>
-                </div>
-                ${item.gdsUsed ? `
-                <div class="col-md-6 mb-3">
-                    <label class="fw-bold">GDS Used:</label>
-                    <p><span class="badge bg-primary">${item.gdsUsed}</span></p>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="fw-bold">PCC:</label>
-                    <p><code>${item.pcc}</code></p>
-                </div>
-                ` : ''}
-                ${item.distributor ? `
-                <div class="col-md-6 mb-3">
-                    <label class="fw-bold">Distributor:</label>
-                    <p>${item.distributor}</p>
-                </div>
-                ` : ''}
-                <div class="col-md-6 mb-3">
-                    <label class="fw-bold">Action Type:</label>
-                    <p><span class="badge bg-dark">${item.actionType}</span></p>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="fw-bold">B2B Status:</label>
+                    <label class="fw-bold">Status:</label>
                     <p>${getStatusBadge(item.b2bStatus)}</p>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="fw-bold">Extract Requested:</label>
-                    <p>${item.extractRequested ? '<span class="badge bg-success">Yes</span>' : '<span class="badge bg-secondary">No</span>'}</p>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="fw-bold">Extract Date:</label>
-                    <p>${extractDate}</p>
                 </div>
                 <div class="col-12 mb-3">
                     <label class="fw-bold">Tariff Codes:</label>
@@ -263,20 +543,9 @@
                 <div class="col-12 mb-3">
                     <label class="fw-bold">Discounts:</label>
                     <table class="table table-sm table-bordered">
-                        <thead>
-                            <tr>
-                                <th>Tariff Code</th>
-                                <th>Discount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${discounts}
-                        </tbody>
+                        <thead><tr><th>Tariff</th><th>Discount</th></tr></thead>
+                        <tbody>${discounts}</tbody>
                     </table>
-                </div>
-                <div class="col-12 mb-3">
-                    <label class="fw-bold">Created At:</label>
-                    <p>${new Date(item.createdAt).toLocaleString()}</p>
                 </div>
             </div>
         `;
@@ -284,29 +553,89 @@
         new bootstrap.Modal(document.getElementById('detailModal')).show();
     }
     
-    // Event listeners
+    function showProgress() {
+        const card = document.getElementById('progressCard');
+        const bar = document.getElementById('progressBar');
+        card.style.display = 'block';
+        bar.style.width = '100%';
+        bar.textContent = 'Processing...';
+        
+        document.getElementById('route1Status').className = 'badge bg-warning text-dark';
+        document.getElementById('route1Status').textContent = 'IDL/S3: Processing';
+        document.getElementById('route2Status').className = 'badge bg-warning text-dark';
+        document.getElementById('route2Status').textContent = 'GDS Air: Processing';
+        document.getElementById('route3Status').className = 'badge bg-warning text-dark';
+        document.getElementById('route3Status').textContent = 'BeNe: Processing';
+    }
+    
+    function hideProgress() {
+        document.getElementById('progressCard').style.display = 'none';
+    }
+    
+    function displayResults(result) {
+        const container = document.getElementById('resultsContainer');
+        
+        if (!result.success && result.message) {
+            container.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle"></i> ${result.message}
+                </div>
+            `;
+            return;
+        }
+        
+        const routeResults = result.routes?.map(r => `
+            <div class="col-md-4">
+                <div class="card ${r.success ? 'border-success' : 'border-danger'}">
+                    <div class="card-header ${r.success ? 'bg-success' : 'bg-danger'} text-white">
+                        <i class="bi bi-${r.success ? 'check-circle' : 'x-circle'}"></i> ${r.routeName}
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-1"><strong>Records:</strong> ${r.recordCount}</p>
+                        <p class="mb-1"><strong>File:</strong> <code>${r.fileName || 'N/A'}</code></p>
+                        ${r.csvPreview ? `<button class="btn btn-sm btn-outline-info mt-2" onclick="showCsv('${encodeURIComponent(r.csvPreview)}')"><i class="bi bi-file-spreadsheet"></i> View CSV</button>` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('') || '';
+        
+        container.innerHTML = `
+            <div class="alert ${result.failedCount === 0 ? 'alert-success' : 'alert-warning'}">
+                <strong>Extract Complete</strong><br>
+                Total Records: ${result.totalRecords} | 
+                <span class="text-success">${result.successCount} extracted</span> | 
+                <span class="text-danger">${result.failedCount} failed</span><br>
+                Duration: ${result.duration || 'N/A'}
+            </div>
+            <div class="row g-3">${routeResults}</div>
+        `;
+    }
+    
+    function showCsv(encoded) {
+        const csv = decodeURIComponent(encoded);
+        document.getElementById('csvContent').textContent = csv;
+        new bootstrap.Modal(document.getElementById('csvModal')).show();
+    }
+    
     document.getElementById('searchBox').addEventListener('input', renderTable);
+    document.getElementById('filterType').addEventListener('change', renderTable);
+    document.getElementById('filterRoad').addEventListener('change', renderTable);
+    document.getElementById('filterPriority').addEventListener('change', renderTable);
     
-    document.querySelectorAll('.sortable').forEach(th => {
-        th.addEventListener('click', function() {
-            const column = this.dataset.column;
-            if (sortColumn === column) {
-                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-            } else {
-                sortColumn = column;
-                sortDirection = 'asc';
-            }
-            
-            // Update sort indicators
-            document.querySelectorAll('.sortable i').forEach(i => {
-                i.className = 'bi bi-arrow-down-up';
-            });
-            this.querySelector('i').className = sortDirection === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
-            
-            renderTable();
+    document.getElementById('clearFiltersBtn').addEventListener('click', function() {
+        document.getElementById('searchBox').value = '';
+        document.getElementById('filterType').value = '';
+        document.getElementById('filterRoad').value = '';
+        document.getElementById('filterPriority').value = '';
+        // Reset stat card filter
+        statusFilter = 'ALL';
+        document.querySelectorAll('.stat-card').forEach(c => {
+            c.classList.remove('border', 'border-4', 'border-dark');
+            c.style.opacity = '0.7';
         });
+        document.querySelector('.stat-card[data-filter="ALL"]').classList.add('border', 'border-4', 'border-dark');
+        document.querySelector('.stat-card[data-filter="ALL"]').style.opacity = '1';
+        renderTable();
     });
-    
-    loadData();
 </script>
 }
