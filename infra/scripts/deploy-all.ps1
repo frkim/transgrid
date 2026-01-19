@@ -173,12 +173,44 @@ else {
 }
 
 # ============================================================
-# Step 2: Mock Server Deployment
+# Step 2: Azure Functions Deployment
+# ============================================================
+if (-not $SkipFunctions -and $deploymentSuccess) {
+    Write-Information "═══════════════════════════════════════════════════════════════"
+    Write-Information "⚡ STEP 2: Azure Functions Deployment"
+    Write-Information "═══════════════════════════════════════════════════════════════"
+    Write-Information ""
+    
+    $functionsScript = Join-Path $ScriptDir "deploy-functions.ps1"
+    
+    if (Test-Path $functionsScript) {
+        & $functionsScript -ResourceGroupName $ResourceGroupName
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Azure Functions deployment failed! Continuing with remaining deployments..."
+            $deploymentSuccess = $false
+        }
+        else {
+            Write-Information "✅ Azure Functions deployment completed"
+        }
+    }
+    else {
+        Write-Warning "Functions deployment script not found at: $functionsScript"
+    }
+    Write-Information ""
+}
+else {
+    Write-Information "⏭️  Skipping Azure Functions deployment"
+    Write-Information ""
+}
+
+# ============================================================
+# Step 3: Mock Server Deployment (after Functions so we can get the function key)
 # ============================================================
 $mockServerEndpoint = $OpsApiEndpoint
 if (-not $SkipMockServer -and $deploymentSuccess) {
     Write-Information "═══════════════════════════════════════════════════════════════"
-    Write-Information "🌐 STEP 2: Mock Server Container Apps Deployment"
+    Write-Information "🌐 STEP 3: Mock Server Container Apps Deployment"
     Write-Information "═══════════════════════════════════════════════════════════════"
     Write-Information ""
     
@@ -207,38 +239,6 @@ if (-not $SkipMockServer -and $deploymentSuccess) {
 }
 else {
     Write-Information "⏭️  Skipping Mock Server deployment"
-    Write-Information ""
-}
-
-# ============================================================
-# Step 3: Azure Functions Deployment
-# ============================================================
-if (-not $SkipFunctions -and $deploymentSuccess) {
-    Write-Information "═══════════════════════════════════════════════════════════════"
-    Write-Information "⚡ STEP 3: Azure Functions Deployment"
-    Write-Information "═══════════════════════════════════════════════════════════════"
-    Write-Information ""
-    
-    $functionsScript = Join-Path $ScriptDir "deploy-functions.ps1"
-    
-    if (Test-Path $functionsScript) {
-        & $functionsScript -ResourceGroupName $ResourceGroupName
-        
-        if ($LASTEXITCODE -ne 0) {
-            Write-Warning "Azure Functions deployment failed! Continuing with remaining deployments..."
-            $deploymentSuccess = $false
-        }
-        else {
-            Write-Information "✅ Azure Functions deployment completed"
-        }
-    }
-    else {
-        Write-Warning "Functions deployment script not found at: $functionsScript"
-    }
-    Write-Information ""
-}
-else {
-    Write-Information "⏭️  Skipping Azure Functions deployment"
     Write-Information ""
 }
 
@@ -316,6 +316,12 @@ if ($functionApp) {
 $logicApp = az logicapp list --resource-group $ResourceGroupName --query "[0]" -o json 2>$null | ConvertFrom-Json
 if ($logicApp) {
     Write-Information "   Logic App:      https://$($logicApp.defaultHostName)"
+}
+
+$containerApp = az containerapp list --resource-group $ResourceGroupName --query "[?contains(name, 'mock')].properties.configuration.ingress.fqdn" -o tsv 2>$null
+if ($containerApp) {
+    Write-Information "   Mock Server:    https://$containerApp"
+    Write-Information "   Function Debug: https://$containerApp/FunctionDebug"
 }
 
 $storageAccounts = az storage account list --resource-group $ResourceGroupName --query "[].name" -o json 2>$null | ConvertFrom-Json

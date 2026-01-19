@@ -62,12 +62,18 @@
                             <li><a class="dropdown-item active" href="#" onclick="setPeriodAndUpdate(10)">10 minutes (default)</a></li>
                             <li><a class="dropdown-item" href="#" onclick="setPeriodAndUpdate(60)">1 hour</a></li>
                             <li><a class="dropdown-item" href="#" onclick="setPeriodAndUpdate(240)">4 hours</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="setPeriodAndUpdate(720)">12 hours</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="setPeriodAndUpdate(1440)">1 day</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="setPeriodAndUpdate(2880)">2 days</a></li>
                         </ul>
                         <select id="updatePeriodSelect" class="d-none">
                             <option value="1">1m</option>
                             <option value="10" selected>10m</option>
                             <option value="60">1h</option>
                             <option value="240">4h</option>
+                            <option value="720">12h</option>
+                            <option value="1440">1d</option>
+                            <option value="2880">2d</option>
                         </select>
                     </div>
                     <button class="btn btn-outline-light btn-sm" onclick="generateNewData()">
@@ -76,6 +82,21 @@
                     <button class="btn btn-outline-warning btn-sm" onclick="resetData()">
                         <i class="bi bi-arrow-counterclockwise"></i> Reset Data
                     </button>
+                    <!-- Hamburger Menu for Developer Tools -->
+                    <div class="dropdown">
+                        <button class="btn btn-outline-light btn-sm" type="button" id="devToolsMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-list"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="devToolsMenu">
+                            <li><h6 class="dropdown-header"><i class="bi bi-gear"></i> Developer Tools</h6></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="/FunctionDebug">
+                                    <i class="bi bi-bug text-warning"></i> Debug TransformTrainPlan Function
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>

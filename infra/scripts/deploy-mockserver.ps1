@@ -45,7 +45,13 @@ param(
     [string]$RegistryName,
 
     [Parameter(Mandatory = $false)]
-    [string]$ImageTag = "latest"
+    [string]$ImageTag = "latest",
+
+    [Parameter(Mandatory = $false)]
+    [string]$FunctionUrl,
+
+    [Parameter(Mandatory = $false)]
+    [string]$FunctionKey
 )
 
 $ErrorActionPreference = "Stop"
@@ -214,6 +220,67 @@ $containerApp = az containerapp show `
 
 $mockServerUrl = "https://$($containerApp.properties.configuration.ingress.fqdn)"
 
+# Auto-detect and configure Function URL and Key
+Write-Information ""
+Write-Information "🔧 Configuring Function Debug settings..."
+
+# Auto-detect Function URL if not provided
+if (-not $FunctionUrl) {
+    Write-Information "   Detecting Function App endpoint..."
+    $functionApps = az functionapp list --resource-group $ResourceGroupName --query "[].{name:name,hostname:defaultHostName}" -o json 2>$null | ConvertFrom-Json
+    if ($functionApps -and $functionApps.Count -gt 0) {
+        $FunctionAppName = $functionApps[0].name
+        $FunctionUrl = "https://$($functionApps[0].hostname)/api/TransformTrainPlan"
+        Write-Information "   Found Function URL: $FunctionUrl"
+    }
+    else {
+        Write-Warning "   No Function App found. Function Debug will use default URL."
+        $FunctionUrl = "https://func-transgrid-transform-$Environment.azurewebsites.net/api/TransformTrainPlan"
+    }
+}
+
+# Auto-detect Function Key if not provided
+if (-not $FunctionKey -and $FunctionAppName) {
+    Write-Information "   Detecting Function key..."
+    $FunctionKey = az functionapp function keys list --resource-group $ResourceGroupName --name $FunctionAppName --function-name TransformTrainPlan --query "default" -o tsv 2>$null
+    if ($FunctionKey) {
+        Write-Information "   ✅ Found Function key"
+    }
+    else {
+        Write-Warning "   No Function key found. You may need to configure it manually."
+        $FunctionKey = ""
+    }
+}
+
+# Update Container App with Function Debug environment variables
+Write-Information "   Updating Container App with Function Debug settings..."
+$envVars = @(
+    "FunctionDebug__FunctionUrl=$FunctionUrl"
+)
+
+# Add function key as a secret if provided
+if ($FunctionKey) {
+    az containerapp secret set `
+        --name $ContainerAppName `
+        --resource-group $ResourceGroupName `
+        --secrets "function-key=$FunctionKey" `
+        --output none 2>$null
+
+    az containerapp update `
+        --name $ContainerAppName `
+        --resource-group $ResourceGroupName `
+        --set-env-vars $envVars "FunctionDebug__FunctionKey=secretref:function-key" `
+        --output none
+} else {
+    az containerapp update `
+        --name $ContainerAppName `
+        --resource-group $ResourceGroupName `
+        --set-env-vars $envVars `
+        --output none
+}
+
+Write-Information "   ✅ Function Debug settings configured"
+
 Write-Information ""
 Write-Information "╔══════════════════════════════════════════════════════════════╗"
 Write-Information "║                    DEPLOYMENT COMPLETE                       ║"
@@ -223,9 +290,14 @@ Write-Information "║  Status:        ✅ SUCCESS                              
 Write-Information "╚══════════════════════════════════════════════════════════════╝"
 Write-Information ""
 Write-Information "🔗 Mock Server Endpoints:"
-Write-Information "   Home:     $mockServerUrl"
-Write-Information "   Swagger:  $mockServerUrl/swagger"
-Write-Information "   OpsAPI:   $mockServerUrl/api/OpsApi"
+Write-Information "   Home:           $mockServerUrl"
+Write-Information "   Swagger:        $mockServerUrl/swagger"
+Write-Information "   OpsAPI:         $mockServerUrl/api/OpsApi"
+Write-Information "   Function Debug: $mockServerUrl/FunctionDebug"
+Write-Information ""
+Write-Information "🔧 Function Debug Configuration:"
+Write-Information "   Function URL: $FunctionUrl"
+Write-Information "   Function Key: $(if ($FunctionKey) { '✅ Configured' } else { '⚠️ Not set' })"
 Write-Information ""
 Write-Information "📝 To update Logic Apps with the new endpoint, run:"
 Write-Information "   .\deploy-logicapps.ps1 -ResourceGroupName $ResourceGroupName -OpsApiEndpoint `"$mockServerUrl`""

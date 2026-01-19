@@ -32,6 +32,13 @@ param targetPort int = 8080
 @description('Environment variables for the container')
 param environmentVariables array = []
 
+@description('Function URL for the TransformTrainPlan function')
+param functionUrl string = ''
+
+@description('Function Key for the TransformTrainPlan function')
+@secure()
+param functionKey string = ''
+
 // Variables
 var containerAppName = 'ca-${nameSuffix}-${environment}'
 
@@ -43,6 +50,12 @@ resource mockServerContainerApp 'Microsoft.App/containerApps@2023-11-02-preview'
     managedEnvironmentId: containerAppsEnvironmentId
     configuration: {
       activeRevisionsMode: 'Single'
+      secrets: [
+        {
+          name: 'function-key'
+          value: functionKey
+        }
+      ]
       ingress: {
         external: true
         targetPort: targetPort
@@ -78,6 +91,14 @@ resource mockServerContainerApp 'Microsoft.App/containerApps@2023-11-02-preview'
             {
               name: 'ASPNETCORE_URLS'
               value: 'http://+:${targetPort}'
+            }
+            {
+              name: 'FunctionDebug__FunctionUrl'
+              value: functionUrl
+            }
+            {
+              name: 'FunctionDebug__FunctionKey'
+              secretRef: 'function-key'
             }
           ], environmentVariables)
         }

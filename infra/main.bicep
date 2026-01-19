@@ -284,6 +284,8 @@ module mockServer 'modules/mock-server.bicep' = {
     targetPort: 8080
     cpuCores: '0.5'
     memoryGb: '1'
+    functionUrl: functionApp.outputs.functionEndpoint
+    functionKey: '' // Function key will be set by deploy-mockserver.ps1 after function deployment
   }
 }
 
