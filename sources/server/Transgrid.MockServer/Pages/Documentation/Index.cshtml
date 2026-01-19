@@ -1,0 +1,308 @@
+@page
+@model Transgrid.MockServer.Pages.Documentation.IndexModel
+@{
+    ViewData["Title"] = "Documentation";
+}
+
+@section Styles {
+    <style>
+        /* GitHub-style markdown rendering */
+        .markdown-body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            padding: 2rem;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .markdown-body h1 {
+            padding-bottom: 0.3em;
+            font-size: 2em;
+            border-bottom: 1px solid #d1d9e0;
+            margin-bottom: 16px;
+            margin-top: 24px;
+            font-weight: 600;
+        }
+        
+        .markdown-body h2 {
+            padding-bottom: 0.3em;
+            font-size: 1.5em;
+            border-bottom: 1px solid #d1d9e0;
+            margin-bottom: 16px;
+            margin-top: 24px;
+            font-weight: 600;
+        }
+        
+        .markdown-body h3 {
+            font-size: 1.25em;
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+        
+        .markdown-body h4 {
+            font-size: 1em;
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+        
+        .markdown-body p {
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+        
+        .markdown-body hr {
+            height: 0.25em;
+            padding: 0;
+            margin: 24px 0;
+            background-color: #d1d9e0;
+            border: 0;
+        }
+        
+        .markdown-body code {
+            padding: 0.2em 0.4em;
+            margin: 0;
+            font-size: 85%;
+            background-color: rgba(175, 184, 193, 0.2);
+            border-radius: 6px;
+            font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+        }
+        
+        .markdown-body pre {
+            padding: 16px;
+            overflow: auto;
+            font-size: 85%;
+            line-height: 1.45;
+            background-color: #f6f8fa;
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+        
+        .markdown-body pre code {
+            display: inline;
+            max-width: auto;
+            padding: 0;
+            margin: 0;
+            overflow: visible;
+            line-height: inherit;
+            word-wrap: normal;
+            background-color: transparent;
+            border: 0;
+        }
+        
+        .markdown-body table {
+            border-spacing: 0;
+            border-collapse: collapse;
+            display: block;
+            width: max-content;
+            max-width: 100%;
+            overflow: auto;
+            margin-bottom: 16px;
+        }
+        
+        .markdown-body table th {
+            font-weight: 600;
+            padding: 6px 13px;
+            border: 1px solid #d1d9e0;
+            background-color: #f6f8fa;
+        }
+        
+        .markdown-body table td {
+            padding: 6px 13px;
+            border: 1px solid #d1d9e0;
+        }
+        
+        .markdown-body table tr:nth-child(2n) {
+            background-color: #f6f8fa;
+        }
+        
+        .markdown-body ul, .markdown-body ol {
+            padding-left: 2em;
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+        
+        .markdown-body li {
+            margin-top: 0.25em;
+        }
+        
+        .markdown-body blockquote {
+            padding: 0 1em;
+            color: #636c76;
+            border-left: 0.25em solid #d1d9e0;
+            margin: 0 0 16px 0;
+        }
+        
+        .markdown-body a {
+            color: #0969da;
+            text-decoration: none;
+        }
+        
+        .markdown-body a:hover {
+            text-decoration: underline;
+        }
+        
+        .markdown-body strong {
+            font-weight: 600;
+        }
+        
+        /* Nav tabs styling */
+        .nav-tabs .nav-link {
+            font-weight: 500;
+            color: #636c76;
+            border: none;
+            padding: 12px 20px;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            color: #0969da;
+            border-color: transparent;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: #0969da;
+            border-bottom: 2px solid #0969da;
+            background-color: transparent;
+        }
+        
+        .tab-content {
+            padding-top: 20px;
+        }
+        
+        /* Loading spinner */
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 3rem;
+        }
+        
+        /* Page header */
+        .page-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .page-header i {
+            font-size: 2rem;
+            margin-right: 1rem;
+            color: #0969da;
+        }
+        
+        .page-header h1 {
+            margin: 0;
+            font-weight: 600;
+        }
+        
+        .page-header p {
+            margin: 0;
+            color: #636c76;
+        }
+    </style>
+}
+
+<div class="container-fluid py-4">
+    <div class="page-header">
+        <i class="bi bi-book"></i>
+        <div>
+            <h1>Documentation</h1>
+            <p class="text-muted">Azure Integration Services Use Cases for TransGrid</p>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-tabs" id="docTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="usecases-tab" data-bs-toggle="tab" data-bs-target="#usecases" 
+                    type="button" role="tab" aria-controls="usecases" aria-selected="true">
+                <i class="bi bi-list-check me-2"></i>Use Cases
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" 
+                    type="button" role="tab" aria-controls="details" aria-selected="false">
+                <i class="bi bi-file-earmark-text me-2"></i>Implementation Details
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="docTabsContent">
+        <div class="tab-pane fade show active" id="usecases" role="tabpanel" aria-labelledby="usecases-tab">
+            <div class="markdown-body" id="usecases-content">
+                <div class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="details" role="tabpanel" aria-labelledby="details-tab">
+            <div class="markdown-body" id="details-content">
+                <div class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <script>
+        // Configure marked with highlight.js
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    try {
+                        return hljs.highlight(code, { language: lang }).value;
+                    } catch (e) {}
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            breaks: true,
+            gfm: true
+        });
+
+        // Markdown content from server (properly escaped)
+        const useCasesMarkdown = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.UseCasesMarkdown));
+        const useCaseDetailsMarkdown = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.UseCaseDetailsMarkdown));
+
+        // Render markdown on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Render Use Cases tab
+            const usecasesContent = document.getElementById('usecases-content');
+            usecasesContent.innerHTML = marked.parse(useCasesMarkdown);
+
+            // Render Details tab
+            const detailsContent = document.getElementById('details-content');
+            detailsContent.innerHTML = marked.parse(useCaseDetailsMarkdown);
+            
+            // Apply syntax highlighting to code blocks
+            document.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+        });
+        
+        // Re-apply syntax highlighting when switching tabs
+        document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(function(tab) {
+            tab.addEventListener('shown.bs.tab', function() {
+                document.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
+            });
+        });
+    </script>
+}
