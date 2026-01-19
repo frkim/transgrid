@@ -115,16 +115,52 @@ if (-not $logicApp) {
 Write-Information "Logic App state: $($logicApp.state)"
 
 # Auto-detect Function endpoint if not provided
+$FunctionAppName = $null
 if (-not $FunctionEndpoint) {
     Write-Information "Detecting Function App endpoint..."
     $functionApps = az functionapp list --resource-group $ResourceGroupName --query "[].{name:name,hostname:defaultHostName}" -o json | ConvertFrom-Json
     if ($functionApps -and $functionApps.Count -gt 0) {
+        $FunctionAppName = $functionApps[0].name
         $FunctionEndpoint = "https://$($functionApps[0].hostname)/api"
         Write-Information "Found Function endpoint: $FunctionEndpoint"
     }
     else {
         Write-Warning "No Function App found. You may need to configure FUNCTION_ENDPOINT manually."
         $FunctionEndpoint = "https://your-function-app.azurewebsites.net/api"
+    }
+}
+
+# Auto-detect Function key if Function App was found
+$FunctionKey = $null
+if ($FunctionAppName) {
+    Write-Information "Detecting Function key..."
+    $FunctionKey = az functionapp function keys list --resource-group $ResourceGroupName --name $FunctionAppName --function-name TransformTrainPlan --query "default" -o tsv 2>$null
+    if ($FunctionKey) {
+        Write-Information "Found Function key"
+    }
+    else {
+        Write-Warning "No Function key found. You may need to configure FUNCTION_KEY manually."
+    }
+}
+
+# Auto-detect Mock Server / OPS API endpoint if not provided
+if (-not $OpsApiEndpoint) {
+    Write-Information "Detecting OPS API endpoint..."
+    $containerApps = az containerapp list --resource-group $ResourceGroupName --query "[?contains(name, 'mock')].{name:name,fqdn:properties.configuration.ingress.fqdn}" -o json 2>$null | ConvertFrom-Json
+    if ($containerApps -and $containerApps.Count -gt 0) {
+        $OpsApiEndpoint = "https://$($containerApps[0].fqdn)/graphql"
+        Write-Information "Found OPS API endpoint: $OpsApiEndpoint"
+    }
+    else {
+        # Check existing app setting
+        $existingEndpoint = az webapp config appsettings list --resource-group $ResourceGroupName --name $LogicAppName --query "[?name=='OPS_API_ENDPOINT'].value" -o tsv 2>$null
+        if ($existingEndpoint) {
+            $OpsApiEndpoint = $existingEndpoint
+            Write-Information "Using existing OPS API endpoint: $OpsApiEndpoint"
+        }
+        else {
+            Write-Warning "No Container App found. You may need to configure OPS_API_ENDPOINT manually."
+        }
     }
 }
 
@@ -201,28 +237,37 @@ if ($LASTEXITCODE -ne 0) {
 Write-Information ""
 Write-Information "Configuring app settings..."
 
-$appSettings = @(
-    "OPS_API_ENDPOINT=$OpsApiEndpoint",
-    "FUNCTION_ENDPOINT=$FunctionEndpoint"
-)
+$appSettings = @()
+
+if ($FunctionEndpoint) {
+    $appSettings += "FUNCTION_ENDPOINT=$FunctionEndpoint"
+}
+
+if ($FunctionKey) {
+    $appSettings += "FUNCTION_KEY=$FunctionKey"
+}
 
 if ($OpsApiEndpoint) {
     $appSettings += "OPS_API_ENDPOINT=$OpsApiEndpoint"
 }
 
-az logicapp config appsettings set `
-    --resource-group $ResourceGroupName `
-    --name $LogicAppName `
-    --settings $appSettings `
-    --output none 2>$null
-
-if ($LASTEXITCODE -ne 0) {
-    # Try webapp command as fallback
-    az webapp config appsettings set `
+if ($appSettings.Count -gt 0) {
+    az logicapp config appsettings set `
         --resource-group $ResourceGroupName `
         --name $LogicAppName `
         --settings $appSettings `
-        --output none
+        --output none 2>$null
+
+    if ($LASTEXITCODE -ne 0) {
+        # Try webapp command as fallback
+        az webapp config appsettings set `
+            --resource-group $ResourceGroupName `
+            --name $LogicAppName `
+            --settings $appSettings `
+            --output none
+    }
+} else {
+    Write-Information "  No app settings to configure."
 }
 
 # Clean up

@@ -37,8 +37,25 @@ param primarySftpEndpoint string = ''
 @description('Backup SFTP endpoint')
 param backupSftpEndpoint string = ''
 
+@description('Primary SFTP host (without port)')
+param primarySftpHost string = ''
+
+@description('Backup SFTP host (without port)')
+param backupSftpHost string = ''
+
+@description('SFTP username')
+param sftpUsername string = ''
+
+@description('SFTP password')
+@secure()
+param sftpPassword string = ''
+
 @description('Azure Function endpoint for transformation')
 param functionEndpoint string = ''
+
+@description('Azure Function key for authentication')
+@secure()
+param functionKey string = ''
 
 @description('Operations API endpoint (GraphQL)')
 param opsApiEndpoint string = ''
@@ -95,7 +112,7 @@ resource logicApp 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'WEBSITE_NODE_DEFAULT_VERSION'
-          value: '~18'
+          value: '~22'
         }
         {
           name: 'AzureWebJobsStorage'
@@ -147,8 +164,28 @@ resource logicApp 'Microsoft.Web/sites@2023-12-01' = {
           value: backupSftpEndpoint
         }
         {
+          name: 'SFTP_PRIMARY_HOST'
+          value: primarySftpHost
+        }
+        {
+          name: 'SFTP_BACKUP_HOST'
+          value: backupSftpHost
+        }
+        {
+          name: 'SFTP_USERNAME'
+          value: sftpUsername
+        }
+        {
+          name: 'SFTP_PASSWORD'
+          value: sftpPassword
+        }
+        {
           name: 'FUNCTION_ENDPOINT'
           value: functionEndpoint
+        }
+        {
+          name: 'FUNCTION_KEY'
+          value: functionKey
         }
         {
           name: 'OPS_API_ENDPOINT'

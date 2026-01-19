@@ -12,12 +12,51 @@ This mock server provides three API endpoints with web-based administration inte
 
 ## Technology Stack
 
-- **.NET 10** - Latest .NET framework
+- **.NET 9** - Latest LTS .NET framework
 - **ASP.NET Core** - Web framework
 - **Razor Pages** - Server-side UI rendering
 - **Web API** - RESTful API endpoints
 - **Bootstrap 5** - Responsive design (loaded via CDN)
 - **Bootstrap Icons** - Icon library (loaded via CDN)
+- **Docker** - Containerization for Azure deployment
+
+## Deployment Options
+
+### Local Development
+
+Run the server locally for development and testing:
+
+```bash
+cd sources/server/Transgrid.MockServer
+dotnet run
+```
+
+Then open http://localhost:5240 in your browser.
+
+### Azure Container Apps
+
+The Mock Server can be deployed to Azure Container Apps alongside the SFTP servers. This provides a fully cloud-hosted API endpoint for the Logic Apps workflows.
+
+```powershell
+# Deploy Mock Server to Azure Container Apps
+cd infra/scripts
+.\deploy-mockserver.ps1 -ResourceGroupName "rg-transgrid-dev"
+```
+
+After deployment, the Mock Server will be available at:
+- **Home:** `https://ca-transgrid-mock-dev.<region>.azurecontainerapps.io`
+- **Swagger:** `https://ca-transgrid-mock-dev.<region>.azurecontainerapps.io/swagger`
+- **OpsAPI:** `https://ca-transgrid-mock-dev.<region>.azurecontainerapps.io/api/OpsApi`
+
+### Docker Build
+
+To build the Docker image locally:
+
+```bash
+cd sources/server/Transgrid.MockServer
+docker build -t transgrid-mockserver:latest .
+docker run -p 8080:8080 transgrid-mockserver:latest
+```
 
 ## Features
 

@@ -155,8 +155,7 @@
           "timeout": "PT2M"
         },
         "trackedProperties": {
-          "eventType": "GraphQLQuery",
-          "travelDate": "@{variables('TravelDate')}"
+          "eventType": "GraphQLQuery"
         }
       },
       "Parse_GraphQL_Response": {
@@ -182,7 +181,18 @@
                         "destination": { "type": "string" },
                         "status": { "type": "string" },
                         "planType": { "type": "string" },
-                        "country": { "type": "string" }
+                        "country": { "type": "string" },
+                        "passagePoints": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "locationCode": { "type": "string" },
+                              "arrivalTime": { "type": ["string", "null"] },
+                              "departureTime": { "type": ["string", "null"] }
+                            }
+                          }
+                        }
                       }
                     }
                   }
@@ -276,7 +286,7 @@
             "type": "Http",
             "inputs": {
               "method": "POST",
-              "uri": "@{appsetting('FUNCTION_ENDPOINT')}/TransformTrainPlan",
+              "uri": "@{appsetting('FUNCTION_ENDPOINT')}/TransformTrainPlan?code=@{appsetting('FUNCTION_KEY')}",
               "headers": {
                 "Content-Type": "application/json",
                 "X-Correlation-Id": "@{variables('RunId')}"
@@ -298,6 +308,21 @@
           "Scope_Upload_Success": {
             "type": "Scope",
             "actions": {
+              "Delete_Existing_Blob": {
+                "type": "ServiceProvider",
+                "inputs": {
+                  "serviceProviderConfiguration": {
+                    "connectionName": "AzureBlob",
+                    "operationId": "deleteBlob",
+                    "serviceProviderId": "/serviceProviders/AzureBlob"
+                  },
+                  "parameters": {
+                    "containerName": "ci-rne-export",
+                    "blobName": "@{formatDateTime(utcNow(), 'yyyy-MM')}/@{variables('TravelDate')}/@{items('For_Each_Train_Plan')?['serviceCode']}_@{variables('TravelDate')}_@{variables('ExportType')}.xml"
+                  }
+                },
+                "runAfter": {}
+              },
               "Archive_to_Blob": {
                 "type": "ServiceProvider",
                 "inputs": {
@@ -312,7 +337,9 @@
                     "content": "@body('Transform_JSON_to_XML')"
                   }
                 },
-                "runAfter": {},
+                "runAfter": {
+                  "Delete_Existing_Blob": ["Succeeded", "Failed", "Skipped"]
+                },
                 "retryPolicy": {
                   "type": "exponential",
                   "count": 3,
@@ -321,21 +348,38 @@
                   "maximumInterval": "PT30S"
                 }
               },
+              "Create_SFTP_Folder_Primary": {
+                "type": "ServiceProvider",
+                "inputs": {
+                  "serviceProviderConfiguration": {
+                    "connectionName": "SftpPrimary",
+                    "operationId": "createFolder",
+                    "serviceProviderId": "/serviceProviders/Sftp"
+                  },
+                  "parameters": {
+                    "folderPath": "/upload/@{variables('TravelDate')}"
+                  }
+                },
+                "runAfter": {
+                  "Archive_to_Blob": ["Succeeded"]
+                }
+              },
               "Upload_to_Primary_SFTP": {
                 "type": "ServiceProvider",
                 "inputs": {
                   "serviceProviderConfiguration": {
                     "connectionName": "SftpPrimary",
-                    "operationId": "uploadFile",
+                    "operationId": "uploadFileContent",
                     "serviceProviderId": "/serviceProviders/Sftp"
                   },
                   "parameters": {
-                    "path": "/upload/@{variables('TravelDate')}/@{items('For_Each_Train_Plan')?['serviceCode']}_@{variables('TravelDate')}_@{variables('ExportType')}.xml",
-                    "content": "@body('Transform_JSON_to_XML')"
+                    "filePath": "/upload/@{variables('TravelDate')}/@{items('For_Each_Train_Plan')?['serviceCode']}_@{variables('TravelDate')}_@{variables('ExportType')}.xml",
+                    "content": "@body('Transform_JSON_to_XML')",
+                    "overWriteFileIfExists": true
                   }
                 },
                 "runAfter": {
-                  "Archive_to_Blob": ["Succeeded"]
+                  "Create_SFTP_Folder_Primary": ["Succeeded", "Failed", "Skipped"]
                 },
                 "retryPolicy": {
                   "type": "exponential",
@@ -345,21 +389,38 @@
                   "maximumInterval": "PT1M"
                 }
               },
+              "Create_SFTP_Folder_Backup": {
+                "type": "ServiceProvider",
+                "inputs": {
+                  "serviceProviderConfiguration": {
+                    "connectionName": "SftpBackup",
+                    "operationId": "createFolder",
+                    "serviceProviderId": "/serviceProviders/Sftp"
+                  },
+                  "parameters": {
+                    "folderPath": "/upload/@{variables('TravelDate')}"
+                  }
+                },
+                "runAfter": {
+                  "Upload_to_Primary_SFTP": ["Succeeded"]
+                }
+              },
               "Upload_to_Backup_SFTP": {
                 "type": "ServiceProvider",
                 "inputs": {
                   "serviceProviderConfiguration": {
                     "connectionName": "SftpBackup",
-                    "operationId": "uploadFile",
+                    "operationId": "uploadFileContent",
                     "serviceProviderId": "/serviceProviders/Sftp"
                   },
                   "parameters": {
-                    "path": "/upload/@{variables('TravelDate')}/@{items('For_Each_Train_Plan')?['serviceCode']}_@{variables('TravelDate')}_@{variables('ExportType')}.xml",
-                    "content": "@body('Transform_JSON_to_XML')"
+                    "filePath": "/upload/@{variables('TravelDate')}/@{items('For_Each_Train_Plan')?['serviceCode']}_@{variables('TravelDate')}_@{variables('ExportType')}.xml",
+                    "content": "@body('Transform_JSON_to_XML')",
+                    "overWriteFileIfExists": true
                   }
                 },
                 "runAfter": {
-                  "Upload_to_Primary_SFTP": ["Succeeded"]
+                  "Create_SFTP_Folder_Backup": ["Succeeded", "Failed", "Skipped"]
                 },
                 "retryPolicy": {
                   "type": "exponential",
@@ -437,7 +498,7 @@
                 "inputs": {
                   "serviceProviderConfiguration": {
                     "connectionName": "AzureTables",
-                    "operationId": "insertEntity",
+                    "operationId": "upsertEntity",
                     "serviceProviderId": "/serviceProviders/AzureTables"
                   },
                   "parameters": {

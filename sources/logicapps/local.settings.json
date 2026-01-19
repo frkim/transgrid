@@ -9,7 +9,7 @@
     "WORKFLOWS_LOCATION_NAME": "westeurope",
     "WORKFLOWS_MANAGEMENT_BASE_URI": "https://management.azure.com/",
     "APP_INSIGHTS_INSTRUMENTATION_KEY": "",
-    "OPS_API_ENDPOINT": "http://localhost:5000/api/graphql",
+    "OPS_API_ENDPOINT": "http://localhost:5240/graphql",
     "FUNCTION_ENDPOINT": "http://localhost:7071/api"
   }
 }

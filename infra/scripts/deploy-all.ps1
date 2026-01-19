@@ -6,8 +6,9 @@
 .DESCRIPTION
     This script orchestrates the complete deployment of the Transgrid solution:
     1. Infrastructure (Bicep templates)
-    2. Azure Functions code
-    3. Logic Apps Standard workflows
+    2. Mock Server (Container Apps)
+    3. Azure Functions code
+    4. Logic Apps Standard workflows
 
 .PARAMETER ResourceGroupName
     The name of the Azure Resource Group. Default: rg-transgrid-{environment}
@@ -22,10 +23,13 @@
     Password for SFTP user account.
 
 .PARAMETER OpsApiEndpoint
-    The Operations API (GraphQL) endpoint URL.
+    The Operations API (GraphQL) endpoint URL. If not provided, Mock Server endpoint will be used.
 
 .PARAMETER SkipInfrastructure
     Skip infrastructure deployment (only deploy code).
+
+.PARAMETER SkipMockServer
+    Skip Mock Server deployment.
 
 .PARAMETER SkipFunctions
     Skip Azure Functions deployment.
@@ -69,6 +73,9 @@ param(
 
     [Parameter(Mandatory = $false)]
     [switch]$SkipInfrastructure,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$SkipMockServer,
 
     [Parameter(Mandatory = $false)]
     [switch]$SkipFunctions,
@@ -166,11 +173,49 @@ else {
 }
 
 # ============================================================
-# Step 2: Azure Functions Deployment
+# Step 2: Mock Server Deployment
+# ============================================================
+$mockServerEndpoint = $OpsApiEndpoint
+if (-not $SkipMockServer -and $deploymentSuccess) {
+    Write-Information "═══════════════════════════════════════════════════════════════"
+    Write-Information "🌐 STEP 2: Mock Server Container Apps Deployment"
+    Write-Information "═══════════════════════════════════════════════════════════════"
+    Write-Information ""
+    
+    $mockServerScript = Join-Path $ScriptDir "deploy-mockserver.ps1"
+    
+    if (Test-Path $mockServerScript) {
+        $mockServerResult = & $mockServerScript -ResourceGroupName $ResourceGroupName -Environment $Environment
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Mock Server deployment failed! Continuing with remaining deployments..."
+            $deploymentSuccess = $false
+        }
+        else {
+            Write-Information "✅ Mock Server deployment completed"
+            # Use Mock Server endpoint if no OpsApiEndpoint was specified
+            if (-not $OpsApiEndpoint -and $mockServerResult) {
+                $mockServerEndpoint = $mockServerResult
+                Write-Information "   Using Mock Server endpoint: $mockServerEndpoint"
+            }
+        }
+    }
+    else {
+        Write-Warning "Mock Server deployment script not found at: $mockServerScript"
+    }
+    Write-Information ""
+}
+else {
+    Write-Information "⏭️  Skipping Mock Server deployment"
+    Write-Information ""
+}
+
+# ============================================================
+# Step 3: Azure Functions Deployment
 # ============================================================
 if (-not $SkipFunctions -and $deploymentSuccess) {
     Write-Information "═══════════════════════════════════════════════════════════════"
-    Write-Information "⚡ STEP 2: Azure Functions Deployment"
+    Write-Information "⚡ STEP 3: Azure Functions Deployment"
     Write-Information "═══════════════════════════════════════════════════════════════"
     Write-Information ""
     
@@ -198,11 +243,11 @@ else {
 }
 
 # ============================================================
-# Step 3: Logic Apps Deployment
+# Step 4: Logic Apps Deployment
 # ============================================================
 if (-not $SkipLogicApps -and $deploymentSuccess) {
     Write-Information "═══════════════════════════════════════════════════════════════"
-    Write-Information "🔄 STEP 3: Logic Apps Standard Deployment"
+    Write-Information "🔄 STEP 4: Logic Apps Standard Deployment"
     Write-Information "═══════════════════════════════════════════════════════════════"
     Write-Information ""
     
@@ -213,8 +258,8 @@ if (-not $SkipLogicApps -and $deploymentSuccess) {
             ResourceGroupName = $ResourceGroupName
         }
         
-        if ($OpsApiEndpoint) {
-            $logicAppsParams.OpsApiEndpoint = $OpsApiEndpoint
+        if ($mockServerEndpoint) {
+            $logicAppsParams.OpsApiEndpoint = $mockServerEndpoint
         }
         
         & $logicAppsScript @logicAppsParams

@@ -17,6 +17,38 @@
         "id": "/serviceProviders/AzureTables"
       },
       "displayName": "Table Storage Connection"
+    },
+    "SftpPrimary": {
+      "parameterValues": {
+        "sshHostAddress": "@appsetting('SFTP_PRIMARY_HOST')",
+        "userName": "@appsetting('SFTP_USERNAME')",
+        "password": "@appsetting('SFTP_PASSWORD')",
+        "sshHostKeyFingerprint": "",
+        "sshPrivateKey": "",
+        "portNumber": 22,
+        "acceptAnySshHostKey": true,
+        "disableUploadFilesChunking": false
+      },
+      "serviceProvider": {
+        "id": "/serviceProviders/Sftp"
+      },
+      "displayName": "SFTP Primary Connection"
+    },
+    "SftpBackup": {
+      "parameterValues": {
+        "sshHostAddress": "@appsetting('SFTP_BACKUP_HOST')",
+        "userName": "@appsetting('SFTP_USERNAME')",
+        "password": "@appsetting('SFTP_PASSWORD')",
+        "sshHostKeyFingerprint": "",
+        "sshPrivateKey": "",
+        "portNumber": 2222,
+        "acceptAnySshHostKey": true,
+        "disableUploadFilesChunking": false
+      },
+      "serviceProvider": {
+        "id": "/serviceProviders/Sftp"
+      },
+      "displayName": "SFTP Backup Connection"
     }
   }
 }

@@ -92,17 +92,22 @@
         "inputs": {
           "content": "@body('Query_Failed_Exports')",
           "schema": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "PartitionKey": { "type": "string" },
-                "RowKey": { "type": "string" },
-                "TrainId": { "type": "string" },
-                "TravelDate": { "type": "string" },
-                "FailureReason": { "type": "string" },
-                "RetryCount": { "type": "integer" },
-                "CreatedAt": { "type": "string" }
+            "type": "object",
+            "properties": {
+              "entities": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "PartitionKey": { "type": "string" },
+                    "RowKey": { "type": "string" },
+                    "TrainId": { "type": "string" },
+                    "TravelDate": { "type": "string" },
+                    "FailureReason": { "type": "string" },
+                    "RetryCount": { "type": "integer" },
+                    "CreatedAt": { "type": "string" }
+                  }
+                }
               }
             }
           }
@@ -113,7 +118,7 @@
       },
       "For_Each_Failed_Export": {
         "type": "Foreach",
-        "foreach": "@body('Parse_Failed_Exports')",
+        "foreach": "@body('Parse_Failed_Exports')?['entities']",
         "actions": {
           "Get_Train_Plan_By_Id": {
             "type": "Http",
@@ -180,7 +185,7 @@
             "type": "Http",
             "inputs": {
               "method": "POST",
-              "uri": "@{appsetting('FUNCTION_ENDPOINT')}/TransformTrainPlan",
+              "uri": "@{appsetting('FUNCTION_ENDPOINT')}/TransformTrainPlan?code=@{appsetting('FUNCTION_KEY')}",
               "headers": {
                 "Content-Type": "application/json",
                 "X-Correlation-Id": "@{variables('RunId')}"
@@ -204,6 +209,21 @@
           "Scope_Retry_Upload": {
             "type": "Scope",
             "actions": {
+              "Delete_Existing_Blob": {
+                "type": "ServiceProvider",
+                "inputs": {
+                  "serviceProviderConfiguration": {
+                    "connectionName": "AzureBlob",
+                    "operationId": "deleteBlob",
+                    "serviceProviderId": "/serviceProviders/AzureBlob"
+                  },
+                  "parameters": {
+                    "containerName": "ci-rne-export",
+                    "blobName": "@{formatDateTime(utcNow(), 'yyyy-MM')}/@{items('For_Each_Failed_Export')?['TravelDate']}/@{items('For_Each_Failed_Export')?['TrainId']}_@{items('For_Each_Failed_Export')?['TravelDate']}_retry.xml"
+                  }
+                },
+                "runAfter": {}
+              },
               "Archive_to_Blob": {
                 "type": "ServiceProvider",
                 "inputs": {
@@ -218,7 +238,9 @@
                     "content": "@body('Transform_JSON_to_XML')"
                   }
                 },
-                "runAfter": {},
+                "runAfter": {
+                  "Delete_Existing_Blob": ["Succeeded", "Failed", "Skipped"]
+                },
                 "retryPolicy": {
                   "type": "exponential",
                   "count": 3,
@@ -227,21 +249,38 @@
                   "maximumInterval": "PT30S"
                 }
               },
+              "Create_SFTP_Folder_Primary": {
+                "type": "ServiceProvider",
+                "inputs": {
+                  "serviceProviderConfiguration": {
+                    "connectionName": "SftpPrimary",
+                    "operationId": "createFolder",
+                    "serviceProviderId": "/serviceProviders/Sftp"
+                  },
+                  "parameters": {
+                    "folderPath": "/upload/@{items('For_Each_Failed_Export')?['TravelDate']}"
+                  }
+                },
+                "runAfter": {
+                  "Archive_to_Blob": ["Succeeded"]
+                }
+              },
               "Upload_to_Primary_SFTP": {
                 "type": "ServiceProvider",
                 "inputs": {
                   "serviceProviderConfiguration": {
                     "connectionName": "SftpPrimary",
-                    "operationId": "uploadFile",
+                    "operationId": "uploadFileContent",
                     "serviceProviderId": "/serviceProviders/Sftp"
                   },
                   "parameters": {
-                    "path": "/upload/@{items('For_Each_Failed_Export')?['TravelDate']}/@{items('For_Each_Failed_Export')?['TrainId']}_@{items('For_Each_Failed_Export')?['TravelDate']}_retry.xml",
-                    "content": "@body('Transform_JSON_to_XML')"
+                    "filePath": "/upload/@{items('For_Each_Failed_Export')?['TravelDate']}/@{items('For_Each_Failed_Export')?['TrainId']}_@{items('For_Each_Failed_Export')?['TravelDate']}_retry.xml",
+                    "content": "@body('Transform_JSON_to_XML')",
+                    "overWriteFileIfExists": true
                   }
                 },
                 "runAfter": {
-                  "Archive_to_Blob": ["Succeeded"]
+                  "Create_SFTP_Folder_Primary": ["Succeeded", "Failed", "Skipped"]
                 },
                 "retryPolicy": {
                   "type": "exponential",

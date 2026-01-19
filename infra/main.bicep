@@ -17,7 +17,7 @@ param sftpUsername string = 'rneuser'
 
 @description('SFTP password')
 @secure()
-param sftpPassword string
+param sftpPassword string = 'MicrosoftAzure123!'
 
 @description('Allowed IP addresses for SFTP access (CIDR notation)')
 param allowedSftpIpRanges array = []
@@ -272,6 +272,21 @@ module sftpBackup 'modules/sftp-server.bicep' = {
   }
 }
 
+// Mock Server for OpsAPI, Salesforce, and Network Rail endpoints
+module mockServer 'modules/mock-server.bicep' = {
+  name: 'mock-server-deployment'
+  params: {
+    nameSuffix: 'transgrid-mock'
+    location: location
+    environment: environment
+    containerAppsEnvironmentId: containerAppsEnvironment.id
+    containerImage: 'mcr.microsoft.com/dotnet/aspnet:9.0'
+    targetPort: 8080
+    cpuCores: '0.5'
+    memoryGb: '1'
+  }
+}
+
 // Azure Function for transformation
 module functionApp 'modules/function-app.bicep' = {
   name: 'function-app-deployment'
@@ -302,8 +317,12 @@ module logicApp 'modules/logic-app.bicep' = {
     tableConnectionString: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${az.environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
     primarySftpEndpoint: sftpPrimary.outputs.sftpEndpoint
     backupSftpEndpoint: sftpBackup.outputs.sftpEndpoint
+    primarySftpHost: sftpPrimary.outputs.containerAppFqdn
+    backupSftpHost: sftpBackup.outputs.containerAppFqdn
+    sftpUsername: sftpUsername
+    sftpPassword: sftpPassword
     functionEndpoint: functionApp.outputs.functionEndpoint
-    opsApiEndpoint: opsApiEndpoint
+    opsApiEndpoint: mockServer.outputs.mockServerEndpoint
   }
 }
 
@@ -324,6 +343,10 @@ output backupSftpFqdn string = sftpBackup.outputs.containerAppFqdn
 
 output functionAppName string = functionApp.outputs.functionAppName
 output functionEndpoint string = functionApp.outputs.functionEndpoint
+
+output mockServerName string = mockServer.outputs.containerAppName
+output mockServerEndpoint string = mockServer.outputs.mockServerEndpoint
+output mockServerFqdn string = mockServer.outputs.containerAppFqdn
 
 output logicAppName string = logicApp.outputs.logicAppName
 output logicAppHostname string = logicApp.outputs.logicAppDefaultHostname
