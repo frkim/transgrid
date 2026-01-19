@@ -167,6 +167,308 @@ public class DataStore
         }
     }
 
+    /// <summary>
+    /// Generate deterministic test data with exactly 8 train plans for today's date
+    /// that will pass the workflow filters (FR/GB, ACTIVE, not EVOLUTION).
+    /// Used for validating the For Each Train Plan loop in workflows.
+    /// </summary>
+    public void GenerateTestDataForWorkflowValidation()
+    {
+        lock (_lock)
+        {
+            _trainPlans.Clear();
+            _negotiatedRates.Clear();
+            _cifSchedules.Clear();
+
+            var today = DateTime.Today;
+            var tomorrow = today.AddDays(1);
+            var dayAfterTomorrow = today.AddDays(2);
+
+            // 8 train plans for TODAY that will PASS the filter (FR/GB, ACTIVE, not EVOLUTION)
+            var testPlans = new List<TrainPlan>
+            {
+                // GB trains - ACTIVE, STANDARD
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9101",
+                    Pathway = "UK-FR",
+                    TravelDate = today,
+                    PassagePoints = new List<string> { "Ebbsfleet International", "Ashford International", "Calais Fréthun" },
+                    Origin = "London St Pancras",
+                    Destination = "Paris Gare du Nord",
+                    Status = "ACTIVE",
+                    PlanType = "STANDARD",
+                    Country = "GB",
+                    CreatedAt = DateTime.UtcNow.AddDays(-5)
+                },
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9102",
+                    Pathway = "UK-BE",
+                    TravelDate = today,
+                    PassagePoints = new List<string> { "Ebbsfleet International", "Lille Europe" },
+                    Origin = "London St Pancras",
+                    Destination = "Brussels Midi",
+                    Status = "ACTIVE",
+                    PlanType = "STANDARD",
+                    Country = "GB",
+                    CreatedAt = DateTime.UtcNow.AddDays(-4)
+                },
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9103",
+                    Pathway = "UK-NL",
+                    TravelDate = today,
+                    PassagePoints = new List<string> { "Ashford International", "Brussels Midi" },
+                    Origin = "London St Pancras",
+                    Destination = "Amsterdam Centraal",
+                    Status = "ACTIVE",
+                    PlanType = "ALTERNATIVE",
+                    Country = "GB",
+                    CreatedAt = DateTime.UtcNow.AddDays(-3)
+                },
+                // FR trains - ACTIVE, STANDARD
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9201",
+                    Pathway = "FR-BE",
+                    TravelDate = today,
+                    PassagePoints = new List<string> { "Lille Europe" },
+                    Origin = "Paris Gare du Nord",
+                    Destination = "Brussels Midi",
+                    Status = "ACTIVE",
+                    PlanType = "STANDARD",
+                    Country = "FR",
+                    CreatedAt = DateTime.UtcNow.AddDays(-6)
+                },
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9202",
+                    Pathway = "FR-BE",
+                    TravelDate = today,
+                    PassagePoints = new List<string> { "Lille Europe", "Antwerp Central" },
+                    Origin = "Paris Gare du Nord",
+                    Destination = "Amsterdam Centraal",
+                    Status = "ACTIVE",
+                    PlanType = "STANDARD",
+                    Country = "FR",
+                    CreatedAt = DateTime.UtcNow.AddDays(-2)
+                },
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9203",
+                    Pathway = "UK-FR",
+                    TravelDate = today,
+                    PassagePoints = new List<string> { "Calais Fréthun", "Ashford International", "Ebbsfleet International" },
+                    Origin = "Paris Gare du Nord",
+                    Destination = "London St Pancras",
+                    Status = "ACTIVE",
+                    PlanType = "ALTERNATIVE",
+                    Country = "FR",
+                    CreatedAt = DateTime.UtcNow.AddDays(-1)
+                },
+                // Additional GB trains
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9104",
+                    Pathway = "UK-FR",
+                    TravelDate = today,
+                    PassagePoints = new List<string> { "Ebbsfleet International", "Calais Fréthun" },
+                    Origin = "London St Pancras",
+                    Destination = "Lille Europe",
+                    Status = "ACTIVE",
+                    PlanType = "STANDARD",
+                    Country = "GB",
+                    CreatedAt = DateTime.UtcNow.AddDays(-7)
+                },
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9204",
+                    Pathway = "FR-BE",
+                    TravelDate = today,
+                    PassagePoints = new List<string> { "Lille Europe" },
+                    Origin = "Paris Gare du Nord",
+                    Destination = "Brussels Midi",
+                    Status = "ACTIVE",
+                    PlanType = "STANDARD",
+                    Country = "FR",
+                    CreatedAt = DateTime.UtcNow.AddDays(-8)
+                }
+            };
+
+            // Add plans that should be EXCLUDED by the filter
+            var excludedPlans = new List<TrainPlan>
+            {
+                // Excluded: Wrong country (BE)
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9301",
+                    Pathway = "BE-NL",
+                    TravelDate = today,
+                    PassagePoints = new List<string> { "Rotterdam Centraal" },
+                    Origin = "Brussels Midi",
+                    Destination = "Amsterdam Centraal",
+                    Status = "ACTIVE",
+                    PlanType = "STANDARD",
+                    Country = "BE",
+                    CreatedAt = DateTime.UtcNow.AddDays(-5)
+                },
+                // Excluded: Wrong status (CANCELLED)
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9302",
+                    Pathway = "UK-FR",
+                    TravelDate = today,
+                    PassagePoints = new List<string> { "Calais Fréthun" },
+                    Origin = "London St Pancras",
+                    Destination = "Paris Gare du Nord",
+                    Status = "CANCELLED",
+                    PlanType = "STANDARD",
+                    Country = "GB",
+                    CreatedAt = DateTime.UtcNow.AddDays(-4)
+                },
+                // Excluded: Wrong planType (EVOLUTION)
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9303",
+                    Pathway = "UK-BE",
+                    TravelDate = today,
+                    PassagePoints = new List<string> { "Lille Europe" },
+                    Origin = "London St Pancras",
+                    Destination = "Brussels Midi",
+                    Status = "ACTIVE",
+                    PlanType = "EVOLUTION",
+                    Country = "GB",
+                    CreatedAt = DateTime.UtcNow.AddDays(-3)
+                },
+                // Excluded: DELAYED status
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9304",
+                    Pathway = "FR-BE",
+                    TravelDate = today,
+                    PassagePoints = new List<string> { "Lille Europe" },
+                    Origin = "Paris Gare du Nord",
+                    Destination = "Brussels Midi",
+                    Status = "DELAYED",
+                    PlanType = "STANDARD",
+                    Country = "FR",
+                    CreatedAt = DateTime.UtcNow.AddDays(-2)
+                }
+            };
+
+            // Plans for D+2 (2 days from now) - for testing rne-d2-export
+            var d2Plans = new List<TrainPlan>
+            {
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9401",
+                    Pathway = "UK-FR",
+                    TravelDate = dayAfterTomorrow,
+                    PassagePoints = new List<string> { "Ebbsfleet International", "Calais Fréthun" },
+                    Origin = "London St Pancras",
+                    Destination = "Paris Gare du Nord",
+                    Status = "ACTIVE",
+                    PlanType = "STANDARD",
+                    Country = "GB",
+                    CreatedAt = DateTime.UtcNow.AddDays(-1)
+                },
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9402",
+                    Pathway = "FR-BE",
+                    TravelDate = dayAfterTomorrow,
+                    PassagePoints = new List<string> { "Lille Europe" },
+                    Origin = "Paris Gare du Nord",
+                    Destination = "Brussels Midi",
+                    Status = "ACTIVE",
+                    PlanType = "STANDARD",
+                    Country = "FR",
+                    CreatedAt = DateTime.UtcNow.AddDays(-1)
+                },
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9403",
+                    Pathway = "UK-BE",
+                    TravelDate = dayAfterTomorrow,
+                    PassagePoints = new List<string> { "Ashford International", "Lille Europe" },
+                    Origin = "London St Pancras",
+                    Destination = "Brussels Midi",
+                    Status = "ACTIVE",
+                    PlanType = "ALTERNATIVE",
+                    Country = "GB",
+                    CreatedAt = DateTime.UtcNow.AddDays(-1)
+                },
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9404",
+                    Pathway = "FR-BE",
+                    TravelDate = dayAfterTomorrow,
+                    PassagePoints = new List<string> { "Lille Europe", "Antwerp Central" },
+                    Origin = "Paris Gare du Nord",
+                    Destination = "Amsterdam Centraal",
+                    Status = "ACTIVE",
+                    PlanType = "STANDARD",
+                    Country = "FR",
+                    CreatedAt = DateTime.UtcNow.AddDays(-1)
+                },
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9405",
+                    Pathway = "UK-NL",
+                    TravelDate = dayAfterTomorrow,
+                    PassagePoints = new List<string> { "Brussels Midi", "Rotterdam Centraal" },
+                    Origin = "London St Pancras",
+                    Destination = "Amsterdam Centraal",
+                    Status = "ACTIVE",
+                    PlanType = "STANDARD",
+                    Country = "GB",
+                    CreatedAt = DateTime.UtcNow.AddDays(-1)
+                },
+                new TrainPlan
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServiceCode = "ES9406",
+                    Pathway = "UK-FR",
+                    TravelDate = dayAfterTomorrow,
+                    PassagePoints = new List<string> { "Ebbsfleet International" },
+                    Origin = "London St Pancras",
+                    Destination = "Lille Europe",
+                    Status = "ACTIVE",
+                    PlanType = "STANDARD",
+                    Country = "GB",
+                    CreatedAt = DateTime.UtcNow.AddDays(-1)
+                }
+            };
+
+            // Add all plans
+            foreach (var plan in testPlans) _trainPlans.Add(plan);
+            foreach (var plan in excludedPlans) _trainPlans.Add(plan);
+            foreach (var plan in d2Plans) _trainPlans.Add(plan);
+
+            // Also generate negotiated rates and CIF schedules for completeness
+            GenerateNegotiatedRates();
+            GenerateCifSchedules();
+        }
+    }
+
     // Reset to Baseline - restores the original baseline dataset
     public void ResetToBaseline()
     {
