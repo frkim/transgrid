@@ -133,7 +133,7 @@
                         <label class="form-label small fw-bold">Endpoint URL:</label>
                         <div class="input-group input-group-sm">
                             <input type="text" class="form-control font-monospace" id="httpTriggerUrl" 
-                                   value="https://{logic-app-name}.azurewebsites.net/api/rne-http-trigger/triggers/Manual_HTTP_Trigger/invoke?api-version=2022-05-01" 
+                                   value="@Model.LogicAppHttpTriggerUrl" 
                                    readonly>
                             <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('httpTriggerUrl')">
                                 <i class="bi bi-clipboard"></i>
@@ -382,7 +382,8 @@
 
 @section Scripts {
 <script>
-    const apiBase = '@Model.BaseApiUrl';
+    // Use relative URL for API calls (same origin) - Fixed 20260119-v2
+    const apiBase = '';
     
     // Set default date to today
     document.getElementById('travelDate').valueAsDate = new Date();

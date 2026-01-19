@@ -51,7 +51,10 @@ param(
     [string]$FunctionUrl,
 
     [Parameter(Mandatory = $false)]
-    [string]$FunctionKey
+    [string]$FunctionKey,
+
+    [Parameter(Mandatory = $false)]
+    [string]$LogicAppHttpTriggerUrl
 )
 
 $ErrorActionPreference = "Stop"
@@ -254,8 +257,25 @@ if (-not $FunctionKey -and $FunctionAppName) {
 
 # Update Container App with Function Debug environment variables
 Write-Information "   Updating Container App with Function Debug settings..."
+
+# Auto-detect Logic App URL if not provided
+if (-not $LogicAppHttpTriggerUrl) {
+    Write-Information "   Detecting Logic App endpoint..."
+    $logicApps = az logicapp list --resource-group $ResourceGroupName --query "[].{name:name,hostname:defaultHostName}" -o json 2>$null | ConvertFrom-Json
+    if ($logicApps -and $logicApps.Count -gt 0) {
+        $LogicAppName = $logicApps[0].name
+        $LogicAppHttpTriggerUrl = "https://$($logicApps[0].hostname)/api/rne-http-trigger/triggers/Manual_HTTP_Trigger/invoke?api-version=2022-05-01"
+        Write-Information "   Found Logic App URL: $LogicAppHttpTriggerUrl"
+    }
+    else {
+        Write-Warning "   No Logic App found. Using placeholder URL."
+        $LogicAppHttpTriggerUrl = "https://{logic-app-name}.azurewebsites.net/api/rne-http-trigger/triggers/Manual_HTTP_Trigger/invoke?api-version=2022-05-01"
+    }
+}
+
 $envVars = @(
-    "FunctionDebug__FunctionUrl=$FunctionUrl"
+    "FunctionDebug__FunctionUrl=$FunctionUrl",
+    "LogicApp__HttpTriggerUrl=$LogicAppHttpTriggerUrl"
 )
 
 # Add function key as a secret if provided
@@ -280,6 +300,7 @@ if ($FunctionKey) {
 }
 
 Write-Information "   ✅ Function Debug settings configured"
+Write-Information "   ✅ Logic App URL configured"
 
 Write-Information ""
 Write-Information "╔══════════════════════════════════════════════════════════════╗"
@@ -293,11 +314,13 @@ Write-Information "🔗 Mock Server Endpoints:"
 Write-Information "   Home:           $mockServerUrl"
 Write-Information "   Swagger:        $mockServerUrl/swagger"
 Write-Information "   OpsAPI:         $mockServerUrl/api/OpsApi"
+Write-Information "   RNE Export:     $mockServerUrl/RneExport"
 Write-Information "   Function Debug: $mockServerUrl/FunctionDebug"
 Write-Information ""
-Write-Information "🔧 Function Debug Configuration:"
-Write-Information "   Function URL: $FunctionUrl"
-Write-Information "   Function Key: $(if ($FunctionKey) { '✅ Configured' } else { '⚠️ Not set' })"
+Write-Information "🔧 Configuration:"
+Write-Information "   Function URL:   $FunctionUrl"
+Write-Information "   Function Key:   $(if ($FunctionKey) { '✅ Configured' } else { '⚠️ Not set' })"
+Write-Information "   Logic App URL:  $LogicAppHttpTriggerUrl"
 Write-Information ""
 Write-Information "📝 To update Logic Apps with the new endpoint, run:"
 Write-Information "   .\deploy-logicapps.ps1 -ResourceGroupName $ResourceGroupName -OpsApiEndpoint `"$mockServerUrl`""
