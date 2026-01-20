@@ -1,13 +1,13 @@
 {
   "serviceProviderConnections": {
-    "eventHub": {
+    "serviceBus": {
       "parameterValues": {
-        "connectionString": "@appsetting('EVENTHUB_CONNECTION_STRING')"
+        "connectionString": "@appsetting('SERVICEBUS_CONNECTION_STRING')"
       },
       "serviceProvider": {
-        "id": "/serviceProviders/eventHub"
+        "id": "/serviceProviders/serviceBus"
       },
-      "displayName": "Event Hub Connection"
+      "displayName": "Service Bus Connection"
     },
     "AzureBlob": {
       "parameterValues": {

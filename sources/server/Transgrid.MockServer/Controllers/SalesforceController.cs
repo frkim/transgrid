@@ -9,15 +9,15 @@ namespace Transgrid.MockServer.Controllers;
 public class SalesforceController : ControllerBase
 {
     private readonly DataStore _dataStore;
-    private readonly EventHubService _eventHubService;
+    private readonly ServiceBusService _serviceBusService;
     private readonly ILogger<SalesforceController> _logger;
     private static DateTime _lastExtractTime = DateTime.MinValue;
     private static int _totalExtracts = 0;
 
-    public SalesforceController(DataStore dataStore, EventHubService eventHubService, ILogger<SalesforceController> logger)
+    public SalesforceController(DataStore dataStore, ServiceBusService serviceBusService, ILogger<SalesforceController> logger)
     {
         _dataStore = dataStore;
-        _eventHubService = eventHubService;
+        _serviceBusService = serviceBusService;
         _logger = logger;
     }
 
@@ -136,7 +136,7 @@ public class SalesforceController : ControllerBase
     }
 
     /// <summary>
-    /// Simulate a Salesforce Platform Event and publish to Event Hub
+    /// Simulate a Salesforce Platform Event and publish to Service Bus
     /// </summary>
     [HttpPost("platform-event")]
     public async Task<ActionResult> SimulatePlatformEvent([FromBody] PlatformEventRequest request)
@@ -154,8 +154,8 @@ public class SalesforceController : ControllerBase
         var eventType = request.EventType ?? "NegotiatedRateExtract__e";
         var rateIds = rates.Select(r => r.Id).ToList();
 
-        // Publish to Event Hub
-        var publishResult = await _eventHubService.PublishPlatformEventAsync(eventType, rateIds);
+        // Publish to Service Bus
+        var publishResult = await _serviceBusService.PublishPlatformEventAsync(eventType, rateIds);
 
         _logger.LogInformation("Platform event published: {EventType} with {Count} records. Simulated: {IsSimulated}", 
             eventType, rates.Count, publishResult.IsSimulated);
@@ -165,7 +165,7 @@ public class SalesforceController : ControllerBase
             eventType,
             recordCount = rates.Count,
             timestamp = DateTime.UtcNow.ToString("O"),
-            eventHubPublished = publishResult.Success,
+            serviceBusPublished = publishResult.Success,
             isSimulated = publishResult.IsSimulated,
             correlationId = publishResult.CorrelationId,
             errorMessage = publishResult.ErrorMessage

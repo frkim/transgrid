@@ -134,7 +134,7 @@ if (-not $FunctionEndpoint) {
 $FunctionKey = $null
 if ($FunctionAppName) {
     Write-Information "Detecting Function key..."
-    $FunctionKey = az functionapp function keys list --resource-group $ResourceGroupName --name $FunctionAppName --function-name TransformTrainPlan --query "default" -o tsv 2>$null
+    $FunctionKey = az functionapp keys list --resource-group $ResourceGroupName --name $FunctionAppName --query "functionKeys.default" -o tsv 2>$null
     if ($FunctionKey) {
         Write-Information "Found Function key"
     }

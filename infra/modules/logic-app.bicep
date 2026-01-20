@@ -60,12 +60,12 @@ param functionKey string = ''
 @description('Operations API endpoint (GraphQL)')
 param opsApiEndpoint string = ''
 
-@description('Event Hub connection string for Salesforce events')
+@description('Service Bus connection string for Salesforce messages')
 @secure()
-param eventHubConnectionString string = ''
+param serviceBusConnectionString string = ''
 
-@description('Event Hub name for Salesforce events')
-param eventHubName string = ''
+@description('Service Bus queue name for Salesforce messages')
+param serviceBusQueueName string = ''
 
 @description('Salesforce API endpoint (mock server)')
 param salesforceApiEndpoint string = ''
@@ -201,14 +201,14 @@ resource logicApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'OPS_API_ENDPOINT'
           value: opsApiEndpoint
         }
-        // Salesforce / Event Hub settings
+        // Salesforce / Service Bus settings
         {
-          name: 'EVENTHUB_CONNECTION_STRING'
-          value: eventHubConnectionString
+          name: 'SERVICEBUS_CONNECTION_STRING'
+          value: serviceBusConnectionString
         }
         {
-          name: 'EVENTHUB_NAME'
-          value: eventHubName
+          name: 'SERVICEBUS_QUEUE_NAME'
+          value: serviceBusQueueName
         }
         {
           name: 'SALESFORCE_API_ENDPOINT'

@@ -132,12 +132,11 @@
                 </div>
                 <div class="card-body">
                     <p class="small text-muted mb-2">
-                        <strong>Event-Driven Architecture:</strong>
+                        <strong>Message-Driven Architecture:</strong>
                     </p>
                     <ul class="small mb-3">
-                        <li><strong>Trigger:</strong> Azure Event Hub</li>
-                        <li><strong>Hub Name:</strong> salesforce-negotiated-rates</li>
-                        <li><strong>Consumer Group:</strong> logicapps-consumer</li>
+                        <li><strong>Trigger:</strong> Azure Service Bus</li>
+                        <li><strong>Queue Name:</strong> salesforce-negotiated-rates</li>
                         <li><strong>Orchestrator:</strong> Logic Apps Standard</li>
                     </ul>
                     <p class="small text-muted mb-2">
@@ -152,13 +151,13 @@
                 </div>
             </div>
 
-            <!-- Event Hub Status -->
+            <!-- Service Bus Status -->
             <div class="card mt-3">
                 <div class="card-header bg-dark text-white">
-                    <i class="bi bi-hdd-network"></i> Event Hub Status
+                    <i class="bi bi-hdd-network"></i> Service Bus Status
                 </div>
                 <div class="card-body">
-                    <div id="eventHubStatus">
+                    <div id="serviceBusStatus">
                         <span class="spinner-border spinner-border-sm me-2"></span>
                         Checking...
                     </div>
@@ -365,7 +364,7 @@
         hideProgress();
     });
     
-    // Trigger platform event simulation - publishes to Event Hub
+    // Trigger platform event simulation - publishes to Service Bus
     document.getElementById('triggerPlatformEventBtn').addEventListener('click', async function() {
         const btn = this;
         const originalText = btn.innerHTML;
@@ -383,16 +382,16 @@
             
             let statusText = `Event: ${result.eventType}\nRecords Triggered: ${result.recordCount}\nTimestamp: ${result.timestamp}\n`;
             
-            if (result.eventHubPublished) {
+            if (result.serviceBusPublished) {
                 statusText += result.isSimulated 
-                    ? `\n⚠️ Event Hub not configured - event simulated locally` 
-                    : `\n✅ Event published to Event Hub\nCorrelation ID: ${result.correlationId}`;
+                    ? `\n⚠️ Service Bus not configured - message simulated locally` 
+                    : `\n✅ Message published to Service Bus\nCorrelation ID: ${result.correlationId}`;
             } else {
-                statusText += `\n❌ Event Hub publish failed: ${result.errorMessage || 'Unknown error'}`;
+                statusText += `\n❌ Service Bus publish failed: ${result.errorMessage || 'Unknown error'}`;
             }
             
             alert(`Platform Event Simulated!\n\n${statusText}`);
-            updateEventHubStatus(result);
+            updateServiceBusStatus(result);
             loadStats();
         } catch (err) {
             alert('Failed to simulate platform event: ' + err.message);
@@ -664,24 +663,24 @@
     document.getElementById('filterRoad').addEventListener('change', renderTable);
     document.getElementById('filterPriority').addEventListener('change', renderTable);
     
-    // Update Event Hub status display
-    function updateEventHubStatus(result) {
-        const statusDiv = document.getElementById('eventHubStatus');
-        if (result && result.eventHubPublished) {
+    // Update Service Bus status display
+    function updateServiceBusStatus(result) {
+        const statusDiv = document.getElementById('serviceBusStatus');
+        if (result && result.serviceBusPublished) {
             if (result.isSimulated) {
                 statusDiv.innerHTML = `
                     <div class="text-warning">
                         <i class="bi bi-exclamation-triangle"></i> <strong>Simulated Mode</strong>
-                        <br><small class="text-muted">Event Hub not configured. Events are simulated locally.</small>
+                        <br><small class="text-muted">Service Bus not configured. Messages are simulated locally.</small>
                     </div>`;
             } else {
                 statusDiv.innerHTML = `
                     <div class="text-success">
                         <i class="bi bi-check-circle"></i> <strong>Connected</strong>
-                        <br><small class="text-muted">Last event: ${result.correlationId}</small>
+                        <br><small class="text-muted">Last message: ${result.correlationId}</small>
                     </div>`;
             }
-        } else if (result && !result.eventHubPublished) {
+        } else if (result && !result.serviceBusPublished) {
             statusDiv.innerHTML = `
                 <div class="text-danger">
                     <i class="bi bi-x-circle"></i> <strong>Error</strong>
@@ -696,8 +695,8 @@
         }
     }
     
-    // Initialize Event Hub status
-    updateEventHubStatus(null);
+    // Initialize Service Bus status
+    updateServiceBusStatus(null);
     
     document.getElementById('clearFiltersBtn').addEventListener('click', function() {
         document.getElementById('searchBox').value = '';

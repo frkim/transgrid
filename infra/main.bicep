@@ -1,7 +1,7 @@
 // Main Bicep Template for Azure Integration Services Demo
 // Deploys all Azure resources for the integration scenarios:
 // - Use Case 1: RNE Operational Plans Export
-// - Use Case 2: Salesforce Negotiated Rates Export (with Event Hub)
+// - Use Case 2: Salesforce Negotiated Rates Export (with Service Bus)
 
 targetScope = 'resourceGroup'
 
@@ -27,7 +27,7 @@ param allowedSftpIpRanges array = []
 @description('Operations API endpoint (GraphQL mock server)')
 param opsApiEndpoint string = 'http://localhost:5000'
 
-@description('Enable Salesforce integration with Event Hub')
+@description('Enable Salesforce integration with Service Bus')
 param enableSalesforceIntegration bool = true
 
 // Variables
@@ -268,15 +268,14 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-11-02-
   }
 }
 
-// Event Hub for Salesforce Integration (Use Case 2)
-module eventHub 'modules/event-hub.bicep' = if (enableSalesforceIntegration) {
-  name: 'eventhub-deployment'
+// Service Bus for Salesforce Integration (Use Case 2)
+module serviceBus 'modules/service-bus.bicep' = if (enableSalesforceIntegration) {
+  name: 'servicebus-deployment'
   params: {
     nameSuffix: baseName
     location: location
     environment: environment
     skuName: 'Standard'
-    skuCapacity: 1
     logAnalyticsWorkspaceId: logAnalytics.id
   }
 }
@@ -328,8 +327,8 @@ module mockServer 'modules/mock-server.bicep' = {
     memoryGb: '1'
     functionUrl: functionApp.outputs.functionEndpoint
     functionKey: '' // Function key will be set by deploy-mockserver.ps1 after function deployment
-    eventHubConnectionString: enableSalesforceIntegration ? eventHub.outputs.sendConnectionString : ''
-    eventHubName: enableSalesforceIntegration ? eventHub.outputs.eventHubName : ''
+    serviceBusConnectionString: enableSalesforceIntegration ? serviceBus.outputs.sendConnectionString : ''
+    serviceBusQueueName: enableSalesforceIntegration ? serviceBus.outputs.queueName : ''
   }
 }
 
@@ -369,8 +368,8 @@ module logicApp 'modules/logic-app.bicep' = {
     sftpPassword: sftpPassword
     functionEndpoint: functionApp.outputs.functionEndpoint
     opsApiEndpoint: mockServer.outputs.mockServerEndpoint
-    eventHubConnectionString: enableSalesforceIntegration ? eventHub.outputs.listenConnectionString : ''
-    eventHubName: enableSalesforceIntegration ? eventHub.outputs.eventHubName : ''
+    serviceBusConnectionString: enableSalesforceIntegration ? serviceBus.outputs.listenConnectionString : ''
+    serviceBusQueueName: enableSalesforceIntegration ? serviceBus.outputs.queueName : ''
     salesforceApiEndpoint: mockServer.outputs.mockServerEndpoint
   }
 }
@@ -403,10 +402,10 @@ output logicAppHostname string = logicApp.outputs.logicAppDefaultHostname
 output appInsightsName string = appInsights.name
 output appInsightsInstrumentationKey string = appInsights.properties.InstrumentationKey
 
-// Event Hub outputs (for Salesforce integration)
-output eventHubNamespaceName string = enableSalesforceIntegration ? eventHub.outputs.eventHubNamespaceName : ''
-output eventHubName string = enableSalesforceIntegration ? eventHub.outputs.eventHubName : ''
-output eventHubNamespaceFqdn string = enableSalesforceIntegration ? eventHub.outputs.eventHubNamespaceFqdn : ''
+// Service Bus outputs (for Salesforce integration)
+output serviceBusNamespaceName string = enableSalesforceIntegration ? serviceBus.outputs.serviceBusNamespaceName : ''
+output serviceBusQueueName string = enableSalesforceIntegration ? serviceBus.outputs.queueName : ''
+output serviceBusNamespaceFqdn string = enableSalesforceIntegration ? serviceBus.outputs.serviceBusNamespaceFqdn : ''
 
 // Salesforce storage containers
 output salesforceInternalContainer string = salesforceInternalContainer.name

@@ -3,17 +3,17 @@
     "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
     "contentVersion": "1.0.0.0",
     "triggers": {
-      "When_events_are_available_in_Event_Hub": {
+      "When_messages_are_available_in_queue": {
         "type": "ServiceProvider",
         "inputs": {
           "serviceProviderConfiguration": {
-            "connectionName": "eventHub",
-            "operationId": "receiveEvents",
-            "serviceProviderId": "/serviceProviders/eventHub"
+            "connectionName": "serviceBus",
+            "operationId": "receiveQueueMessages",
+            "serviceProviderId": "/serviceProviders/serviceBus"
           },
           "parameters": {
-            "eventHubName": "@appsetting('EVENTHUB_NAME')",
-            "consumerGroup": "logicapps-consumer"
+            "queueName": "@appsetting('SERVICEBUS_QUEUE_NAME')",
+            "isSessionsEnabled": false
           }
         },
         "splitOn": "@triggerOutputs()?['body']"
@@ -336,12 +336,6 @@
             },
             "runAfter": {
               "Update_Salesforce_Status": ["Succeeded", "Failed"]
-            },
-            "trackedProperties": {
-              "eventType": "WorkflowEnd",
-              "runId": "@{variables('RunId')}",
-              "processedCount": "@{variables('ProcessedCount')}",
-              "failedRoutes": "@{length(variables('FailedRoutes'))}"
             }
           }
         },

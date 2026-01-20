@@ -39,24 +39,24 @@ param functionUrl string = ''
 @secure()
 param functionKey string = ''
 
-@description('Event Hub connection string for sending Salesforce events')
+@description('Service Bus connection string for sending Salesforce messages')
 @secure()
-param eventHubConnectionString string = ''
+param serviceBusConnectionString string = ''
 
-@description('Event Hub name for Salesforce events')
-param eventHubName string = ''
+@description('Service Bus queue name for Salesforce messages')
+param serviceBusQueueName string = ''
 
 // Variables
 var containerAppName = 'ca-${nameSuffix}-${environment}'
 
 // Build secrets array conditionally (only include secrets with values)
 var functionKeySecret = !empty(functionKey) ? [{ name: 'function-key', value: functionKey }] : []
-var eventHubSecret = !empty(eventHubConnectionString) ? [{ name: 'eventhub-connection', value: eventHubConnectionString }] : []
-var allSecrets = concat(functionKeySecret, eventHubSecret)
+var serviceBusSecret = !empty(serviceBusConnectionString) ? [{ name: 'servicebus-connection', value: serviceBusConnectionString }] : []
+var allSecrets = concat(functionKeySecret, serviceBusSecret)
 
 // Build environment variables for secrets only when secrets exist
 var functionKeyEnv = !empty(functionKey) ? [{ name: 'FunctionDebug__FunctionKey', secretRef: 'function-key' }] : [{ name: 'FunctionDebug__FunctionKey', value: '' }]
-var eventHubEnv = !empty(eventHubConnectionString) ? [{ name: 'EventHub__ConnectionString', secretRef: 'eventhub-connection' }] : [{ name: 'EventHub__ConnectionString', value: '' }]
+var serviceBusEnv = !empty(serviceBusConnectionString) ? [{ name: 'ServiceBus__ConnectionString', secretRef: 'servicebus-connection' }] : [{ name: 'ServiceBus__ConnectionString', value: '' }]
 
 // Container App for Mock Server
 resource mockServerContainerApp 'Microsoft.App/containerApps@2023-11-02-preview' = {
@@ -108,10 +108,10 @@ resource mockServerContainerApp 'Microsoft.App/containerApps@2023-11-02-preview'
               value: functionUrl
             }
             {
-              name: 'EventHub__Name'
-              value: eventHubName
+              name: 'ServiceBus__QueueName'
+              value: serviceBusQueueName
             }
-          ], functionKeyEnv, eventHubEnv, environmentVariables)
+          ], functionKeyEnv, serviceBusEnv, environmentVariables)
         }
       ]
       scale: {
