@@ -128,11 +128,20 @@
             <!-- Salesforce Connection Info -->
             <div class="card mt-3">
                 <div class="card-header bg-secondary text-white">
-                    <i class="bi bi-cloud-check"></i> Salesforce Integration
+                    <i class="bi bi-cloud-check"></i> Integration Setup
                 </div>
                 <div class="card-body">
                     <p class="small text-muted mb-2">
-                        Integration points with Salesforce:
+                        <strong>Event-Driven Architecture:</strong>
+                    </p>
+                    <ul class="small mb-3">
+                        <li><strong>Trigger:</strong> Azure Event Hub</li>
+                        <li><strong>Hub Name:</strong> salesforce-negotiated-rates</li>
+                        <li><strong>Consumer Group:</strong> logicapps-consumer</li>
+                        <li><strong>Orchestrator:</strong> Logic Apps Standard</li>
+                    </ul>
+                    <p class="small text-muted mb-2">
+                        <strong>Salesforce Simulation:</strong>
                     </p>
                     <ul class="small mb-0">
                         <li><strong>Platform Event:</strong> NegotiatedRateExtract__e</li>
@@ -140,6 +149,19 @@
                         <li><strong>Object:</strong> Negotiated_Rate__c</li>
                         <li><strong>Auth:</strong> OAuth 2.0 JWT Bearer</li>
                     </ul>
+                </div>
+            </div>
+
+            <!-- Event Hub Status -->
+            <div class="card mt-3">
+                <div class="card-header bg-dark text-white">
+                    <i class="bi bi-hdd-network"></i> Event Hub Status
+                </div>
+                <div class="card-body">
+                    <div id="eventHubStatus">
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        Checking...
+                    </div>
                 </div>
             </div>
         </div>
@@ -343,8 +365,13 @@
         hideProgress();
     });
     
-    // Trigger platform event simulation
+    // Trigger platform event simulation - publishes to Event Hub
     document.getElementById('triggerPlatformEventBtn').addEventListener('click', async function() {
+        const btn = this;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Publishing...';
+        
         try {
             const response = await fetch(`${apiBase}/api/Salesforce/platform-event`, {
                 method: 'POST',
@@ -353,10 +380,25 @@
             });
             
             const result = await response.json();
-            alert(`Platform Event Simulated!\n\nEvent: ${result.eventType}\nRecords Triggered: ${result.recordCount}\nTimestamp: ${result.timestamp}`);
+            
+            let statusText = `Event: ${result.eventType}\nRecords Triggered: ${result.recordCount}\nTimestamp: ${result.timestamp}\n`;
+            
+            if (result.eventHubPublished) {
+                statusText += result.isSimulated 
+                    ? `\n⚠️ Event Hub not configured - event simulated locally` 
+                    : `\n✅ Event published to Event Hub\nCorrelation ID: ${result.correlationId}`;
+            } else {
+                statusText += `\n❌ Event Hub publish failed: ${result.errorMessage || 'Unknown error'}`;
+            }
+            
+            alert(`Platform Event Simulated!\n\n${statusText}`);
+            updateEventHubStatus(result);
             loadStats();
         } catch (err) {
             alert('Failed to simulate platform event: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
         }
     });
     
@@ -621,6 +663,41 @@
     document.getElementById('filterType').addEventListener('change', renderTable);
     document.getElementById('filterRoad').addEventListener('change', renderTable);
     document.getElementById('filterPriority').addEventListener('change', renderTable);
+    
+    // Update Event Hub status display
+    function updateEventHubStatus(result) {
+        const statusDiv = document.getElementById('eventHubStatus');
+        if (result && result.eventHubPublished) {
+            if (result.isSimulated) {
+                statusDiv.innerHTML = `
+                    <div class="text-warning">
+                        <i class="bi bi-exclamation-triangle"></i> <strong>Simulated Mode</strong>
+                        <br><small class="text-muted">Event Hub not configured. Events are simulated locally.</small>
+                    </div>`;
+            } else {
+                statusDiv.innerHTML = `
+                    <div class="text-success">
+                        <i class="bi bi-check-circle"></i> <strong>Connected</strong>
+                        <br><small class="text-muted">Last event: ${result.correlationId}</small>
+                    </div>`;
+            }
+        } else if (result && !result.eventHubPublished) {
+            statusDiv.innerHTML = `
+                <div class="text-danger">
+                    <i class="bi bi-x-circle"></i> <strong>Error</strong>
+                    <br><small>${result.errorMessage || 'Connection failed'}</small>
+                </div>`;
+        } else {
+            statusDiv.innerHTML = `
+                <div class="text-muted">
+                    <i class="bi bi-dash-circle"></i> <strong>Unknown</strong>
+                    <br><small>Click "Simulate Platform Event" to test connection</small>
+                </div>`;
+        }
+    }
+    
+    // Initialize Event Hub status
+    updateEventHubStatus(null);
     
     document.getElementById('clearFiltersBtn').addEventListener('click', function() {
         document.getElementById('searchBox').value = '';

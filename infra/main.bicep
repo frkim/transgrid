@@ -1,5 +1,7 @@
-// Main Bicep Template for RNE Operational Plans Export Demo
-// Deploys all Azure resources for the integration scenario
+// Main Bicep Template for Azure Integration Services Demo
+// Deploys all Azure resources for the integration scenarios:
+// - Use Case 1: RNE Operational Plans Export
+// - Use Case 2: Salesforce Negotiated Rates Export (with Event Hub)
 
 targetScope = 'resourceGroup'
 
@@ -25,6 +27,9 @@ param allowedSftpIpRanges array = []
 @description('Operations API endpoint (GraphQL mock server)')
 param opsApiEndpoint string = 'http://localhost:5000'
 
+@description('Enable Salesforce integration with Event Hub')
+param enableSalesforceIntegration bool = true
+
 // Variables
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var storageAccountName = 'st${baseName}${uniqueSuffix}'
@@ -36,7 +41,7 @@ var vnetName = 'vnet-${baseName}-${environment}'
 // Tags for all resources
 var tags = {
   Environment: environment
-  Project: 'Transgrid RNE Export'
+  Project: 'Transgrid Azure Integration Services'
   ManagedBy: 'Bicep'
 }
 
@@ -115,6 +120,24 @@ resource rneExportContainer 'Microsoft.Storage/storageAccounts/blobServices/cont
   }
 }
 
+// Blob Container for Salesforce internal exports (S3/IDL and GDS Air)
+resource salesforceInternalContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'salesforce-internal'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+// Blob Container for Salesforce external exports (BeNe)
+resource salesforceExternalContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'salesforce-external'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
 resource functionReleasesContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   parent: blobService
   name: 'function-releases'
@@ -132,6 +155,12 @@ resource tableService 'Microsoft.Storage/storageAccounts/tableServices@2023-05-0
 resource failedExportsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
   parent: tableService
   name: 'FailedExports'
+}
+
+// Table for Salesforce extract tracking
+resource salesforceExtractsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  parent: tableService
+  name: 'SalesforceExtracts'
 }
 
 // File Shares for SFTP
@@ -239,6 +268,19 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-11-02-
   }
 }
 
+// Event Hub for Salesforce Integration (Use Case 2)
+module eventHub 'modules/event-hub.bicep' = if (enableSalesforceIntegration) {
+  name: 'eventhub-deployment'
+  params: {
+    nameSuffix: baseName
+    location: location
+    environment: environment
+    skuName: 'Standard'
+    skuCapacity: 1
+    logAnalyticsWorkspaceId: logAnalytics.id
+  }
+}
+
 // Primary SFTP Server
 module sftpPrimary 'modules/sftp-server.bicep' = {
   name: 'sftp-primary-deployment'
@@ -286,6 +328,8 @@ module mockServer 'modules/mock-server.bicep' = {
     memoryGb: '1'
     functionUrl: functionApp.outputs.functionEndpoint
     functionKey: '' // Function key will be set by deploy-mockserver.ps1 after function deployment
+    eventHubConnectionString: enableSalesforceIntegration ? eventHub.outputs.sendConnectionString : ''
+    eventHubName: enableSalesforceIntegration ? eventHub.outputs.eventHubName : ''
   }
 }
 
@@ -325,6 +369,9 @@ module logicApp 'modules/logic-app.bicep' = {
     sftpPassword: sftpPassword
     functionEndpoint: functionApp.outputs.functionEndpoint
     opsApiEndpoint: mockServer.outputs.mockServerEndpoint
+    eventHubConnectionString: enableSalesforceIntegration ? eventHub.outputs.listenConnectionString : ''
+    eventHubName: enableSalesforceIntegration ? eventHub.outputs.eventHubName : ''
+    salesforceApiEndpoint: mockServer.outputs.mockServerEndpoint
   }
 }
 
@@ -355,3 +402,12 @@ output logicAppHostname string = logicApp.outputs.logicAppDefaultHostname
 
 output appInsightsName string = appInsights.name
 output appInsightsInstrumentationKey string = appInsights.properties.InstrumentationKey
+
+// Event Hub outputs (for Salesforce integration)
+output eventHubNamespaceName string = enableSalesforceIntegration ? eventHub.outputs.eventHubNamespaceName : ''
+output eventHubName string = enableSalesforceIntegration ? eventHub.outputs.eventHubName : ''
+output eventHubNamespaceFqdn string = enableSalesforceIntegration ? eventHub.outputs.eventHubNamespaceFqdn : ''
+
+// Salesforce storage containers
+output salesforceInternalContainer string = salesforceInternalContainer.name
+output salesforceExternalContainer string = salesforceExternalContainer.name

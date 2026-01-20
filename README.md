@@ -6,11 +6,25 @@ Demo of Azure Integration Services for a train company. This simulates an integr
 
 The solution consists of:
 
-- **Azure Functions** - XML transformation service for TAF-JSG format
-- **Logic Apps Standard** - Workflow orchestration for RNE data export
+- **Azure Functions** - XML/CSV transformation services for TAF-JSG and negotiated rates formats
+- **Logic Apps Standard** - Workflow orchestration for RNE data export and Salesforce integration
+- **Azure Event Hub** - Event-driven triggers for Salesforce Platform Event integration
 - **Azure Storage** - Blob storage and Table storage for data persistence
 - **SFTP Container Apps** - Primary and backup SFTP servers for RNE file delivery
 - **Mock Server Container Apps** - Mock API server for OpsAPI, Salesforce, and Network Rail endpoints
+
+## Use Cases
+
+### Use Case 1: RNE Operational Plans Export
+Scheduled export of train operational plans to Rail Network Europe (RNE) via SFTP. Uses Logic Apps recurrence triggers to fetch data from OpsAPI, transform to TAF-JSG XML format, and deliver via SFTP.
+
+### Use Case 2: Salesforce Negotiated Rates Export
+Event-driven integration triggered by Salesforce Platform Events (simulated via Azure Event Hub). Implements a scatter-gather pattern to process three parallel extract routes:
+- **Route 1 (IDL/S3)**: Internal distribution - Ground and IDL type rates
+- **Route 2 (GDS Air)**: Travel agents - GDS-connected rates (Amadeus, Galileo, Sabre)
+- **Route 3 (BeNe)**: External partners - Distributor-connected rates
+
+Each route generates a CSV file uploaded to Azure Blob Storage (internal or external containers).
 
 ## Quick Start
 
@@ -94,11 +108,12 @@ transgrid/
 │   ├── deploy.ps1              # Infrastructure deployment
 │   ├── main.bicep              # Main Bicep template
 │   ├── main.bicepparam         # Bicep parameters
-│   ├── modules/                # Bicep modules
+│   │   ├── modules/                # Bicep modules
 │   │   ├── function-app.bicep  # Azure Functions
 │   │   ├── logic-app.bicep     # Logic Apps Standard
 │   │   ├── mock-server.bicep   # Mock Server Container App
-│   │   └── sftp-server.bicep   # SFTP Container Apps
+│   │   ├── sftp-server.bicep   # SFTP Container Apps
+│   │   └── event-hub.bicep     # Azure Event Hub
 │   └── scripts/
 │       ├── deploy-all.ps1      # Master deployment script
 │       ├── deploy-mockserver.ps1 # Mock Server deployment
@@ -110,10 +125,11 @@ transgrid/
 │   ├── logicapps/              # Logic Apps Standard
 │   │   ├── host.json
 │   │   ├── connections.json
-│   │   ├── rne-daily-export/
-│   │   ├── rne-d2-export/
-│   │   ├── rne-http-trigger/
-│   │   └── rne-retry-failed/
+│   │   ├── rne-daily-export/       # Use Case 1: RNE daily export
+│   │   ├── rne-d2-export/          # Use Case 1: RNE D-2 export
+│   │   ├── rne-http-trigger/       # Use Case 1: Manual trigger
+│   │   ├── rne-retry-failed/       # Use Case 1: Retry failed
+│   │   └── sf-negotiated-rates/    # Use Case 2: Salesforce export
 │   ├── server/                 # Mock Server
 │   │   └── Transgrid.MockServer/
 │   │       ├── Dockerfile      # Container image build

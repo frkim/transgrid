@@ -1,5 +1,14 @@
 {
   "serviceProviderConnections": {
+    "eventHub": {
+      "parameterValues": {
+        "connectionString": "@appsetting('EVENTHUB_CONNECTION_STRING')"
+      },
+      "serviceProvider": {
+        "id": "/serviceProviders/eventHub"
+      },
+      "displayName": "Event Hub Connection"
+    },
     "AzureBlob": {
       "parameterValues": {
         "connectionString": "@appsetting('BLOB_CONNECTION_STRING')"

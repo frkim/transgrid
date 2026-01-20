@@ -6,6 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddControllers();
 builder.Services.AddSingleton<DataStore>();
+builder.Services.AddSingleton<EventHubService>();
 builder.Services.AddHttpClient(); // For FunctionDebug controller
 
 // Add Swagger/OpenAPI

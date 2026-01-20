@@ -39,8 +39,24 @@ param functionUrl string = ''
 @secure()
 param functionKey string = ''
 
+@description('Event Hub connection string for sending Salesforce events')
+@secure()
+param eventHubConnectionString string = ''
+
+@description('Event Hub name for Salesforce events')
+param eventHubName string = ''
+
 // Variables
 var containerAppName = 'ca-${nameSuffix}-${environment}'
+
+// Build secrets array conditionally (only include secrets with values)
+var functionKeySecret = !empty(functionKey) ? [{ name: 'function-key', value: functionKey }] : []
+var eventHubSecret = !empty(eventHubConnectionString) ? [{ name: 'eventhub-connection', value: eventHubConnectionString }] : []
+var allSecrets = concat(functionKeySecret, eventHubSecret)
+
+// Build environment variables for secrets only when secrets exist
+var functionKeyEnv = !empty(functionKey) ? [{ name: 'FunctionDebug__FunctionKey', secretRef: 'function-key' }] : [{ name: 'FunctionDebug__FunctionKey', value: '' }]
+var eventHubEnv = !empty(eventHubConnectionString) ? [{ name: 'EventHub__ConnectionString', secretRef: 'eventhub-connection' }] : [{ name: 'EventHub__ConnectionString', value: '' }]
 
 // Container App for Mock Server
 resource mockServerContainerApp 'Microsoft.App/containerApps@2023-11-02-preview' = {
@@ -50,12 +66,7 @@ resource mockServerContainerApp 'Microsoft.App/containerApps@2023-11-02-preview'
     managedEnvironmentId: containerAppsEnvironmentId
     configuration: {
       activeRevisionsMode: 'Single'
-      secrets: [
-        {
-          name: 'function-key'
-          value: functionKey
-        }
-      ]
+      secrets: allSecrets
       ingress: {
         external: true
         targetPort: targetPort
@@ -97,10 +108,10 @@ resource mockServerContainerApp 'Microsoft.App/containerApps@2023-11-02-preview'
               value: functionUrl
             }
             {
-              name: 'FunctionDebug__FunctionKey'
-              secretRef: 'function-key'
+              name: 'EventHub__Name'
+              value: eventHubName
             }
-          ], environmentVariables)
+          ], functionKeyEnv, eventHubEnv, environmentVariables)
         }
       ]
       scale: {

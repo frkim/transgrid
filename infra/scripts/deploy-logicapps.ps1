@@ -190,7 +190,7 @@ foreach ($file in $filesToCopy) {
 }
 
 # Copy workflow folders
-$workflowFolders = Get-ChildItem -Path $LogicAppsDir -Directory | Where-Object { $_.Name -like "rne-*" }
+$workflowFolders = Get-ChildItem -Path $LogicAppsDir -Directory | Where-Object { $_.Name -like "rne-*" -or $_.Name -like "sf-*" }
 foreach ($folder in $workflowFolders) {
     $destFolder = Join-Path $TempDir $folder.Name
     Copy-Item -Path $folder.FullName -Destination $destFolder -Recurse -Force
@@ -249,6 +249,9 @@ if ($FunctionKey) {
 
 if ($OpsApiEndpoint) {
     $appSettings += "OPS_API_ENDPOINT=$OpsApiEndpoint"
+    # Also set Salesforce API endpoint to the Mock Server
+    $salesforceEndpoint = $OpsApiEndpoint -replace "/graphql$", ""
+    $appSettings += "SALESFORCE_API_ENDPOINT=$salesforceEndpoint"
 }
 
 if ($appSettings.Count -gt 0) {

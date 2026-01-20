@@ -20,3 +20,23 @@ public class NegotiatedRate
     public DateTime? B2bExtractDate { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
+
+/// <summary>
+/// Request to get negotiated rates by IDs
+/// </summary>
+public class NegotiatedRatesRequest
+{
+    public List<string> Ids { get; set; } = new();
+}
+
+/// <summary>
+/// Request to update extract status for rates
+/// </summary>
+public class UpdateExtractStatusRequest
+{
+    public List<string> Ids { get; set; } = new();
+    public string? Status { get; set; }
+    public DateTime? ExtractDate { get; set; }
+    public List<object>? FailedRoutes { get; set; }
+}
+

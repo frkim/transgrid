@@ -11,10 +11,13 @@ var host = new HostBuilder()
         services.AddApplicationInsightsTelemetryWorkerService();
         services.ConfigureFunctionsApplicationInsights();
         
-        // Register services
+        // Register services for RNE Export (Use Case 1)
         services.AddSingleton<IXmlTransformService, XmlTransformService>();
         services.AddSingleton<IXmlValidationService, XmlValidationService>();
         services.AddSingleton<IReferenceDataService, ReferenceDataService>();
+        
+        // Register services for Salesforce Negotiated Rates (Use Case 2)
+        services.AddSingleton<ICsvGeneratorService, CsvGeneratorService>();
     })
     .Build();
 

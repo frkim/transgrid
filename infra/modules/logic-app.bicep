@@ -60,6 +60,16 @@ param functionKey string = ''
 @description('Operations API endpoint (GraphQL)')
 param opsApiEndpoint string = ''
 
+@description('Event Hub connection string for Salesforce events')
+@secure()
+param eventHubConnectionString string = ''
+
+@description('Event Hub name for Salesforce events')
+param eventHubName string = ''
+
+@description('Salesforce API endpoint (mock server)')
+param salesforceApiEndpoint string = ''
+
 // Variables
 var hostingPlanName = 'asp-${logicAppName}'
 var logicAppFullName = 'logic-${logicAppName}-${environment}'
@@ -190,6 +200,19 @@ resource logicApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'OPS_API_ENDPOINT'
           value: opsApiEndpoint
+        }
+        // Salesforce / Event Hub settings
+        {
+          name: 'EVENTHUB_CONNECTION_STRING'
+          value: eventHubConnectionString
+        }
+        {
+          name: 'EVENTHUB_NAME'
+          value: eventHubName
+        }
+        {
+          name: 'SALESFORCE_API_ENDPOINT'
+          value: salesforceApiEndpoint
         }
       ]
     }

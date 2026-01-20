@@ -9,12 +9,16 @@ namespace Transgrid.MockServer.Controllers;
 public class SalesforceController : ControllerBase
 {
     private readonly DataStore _dataStore;
+    private readonly EventHubService _eventHubService;
+    private readonly ILogger<SalesforceController> _logger;
     private static DateTime _lastExtractTime = DateTime.MinValue;
     private static int _totalExtracts = 0;
 
-    public SalesforceController(DataStore dataStore)
+    public SalesforceController(DataStore dataStore, EventHubService eventHubService, ILogger<SalesforceController> logger)
     {
         _dataStore = dataStore;
+        _eventHubService = eventHubService;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -132,10 +136,10 @@ public class SalesforceController : ControllerBase
     }
 
     /// <summary>
-    /// Simulate a Salesforce Platform Event
+    /// Simulate a Salesforce Platform Event and publish to Event Hub
     /// </summary>
     [HttpPost("platform-event")]
-    public ActionResult SimulatePlatformEvent([FromBody] PlatformEventRequest request)
+    public async Task<ActionResult> SimulatePlatformEvent([FromBody] PlatformEventRequest request)
     {
         var rates = _dataStore.GetNegotiatedRates()
             .Where(r => r.B2bStatus == "Pending")
@@ -147,11 +151,77 @@ public class SalesforceController : ControllerBase
             _dataStore.UpdateNegotiatedRate(rate);
         }
 
+        var eventType = request.EventType ?? "NegotiatedRateExtract__e";
+        var rateIds = rates.Select(r => r.Id).ToList();
+
+        // Publish to Event Hub
+        var publishResult = await _eventHubService.PublishPlatformEventAsync(eventType, rateIds);
+
+        _logger.LogInformation("Platform event published: {EventType} with {Count} records. Simulated: {IsSimulated}", 
+            eventType, rates.Count, publishResult.IsSimulated);
+
         return Ok(new
         {
-            eventType = request.EventType ?? "NegotiatedRateExtract__e",
+            eventType,
             recordCount = rates.Count,
-            timestamp = DateTime.UtcNow.ToString("O")
+            timestamp = DateTime.UtcNow.ToString("O"),
+            eventHubPublished = publishResult.Success,
+            isSimulated = publishResult.IsSimulated,
+            correlationId = publishResult.CorrelationId,
+            errorMessage = publishResult.ErrorMessage
+        });
+    }
+
+    /// <summary>
+    /// Get negotiated rates by IDs (called by Logic Apps workflow)
+    /// </summary>
+    [HttpPost("getNegotiatedRates")]
+    public ActionResult<List<NegotiatedRate>> GetNegotiatedRatesByIds([FromBody] NegotiatedRatesRequest request)
+    {
+        if (request?.Ids == null || !request.Ids.Any())
+        {
+            // Return all pending rates if no IDs specified
+            return Ok(_dataStore.GetNegotiatedRates().Where(r => r.ExtractRequested || r.B2bStatus == "Pending").ToList());
+        }
+
+        var rates = _dataStore.GetNegotiatedRates()
+            .Where(r => request.Ids.Contains(r.Id))
+            .ToList();
+
+        return Ok(rates);
+    }
+
+    /// <summary>
+    /// Update extract status (called by Logic Apps workflow)
+    /// </summary>
+    [HttpPost("updateExtractStatus")]
+    public ActionResult UpdateExtractStatus([FromBody] UpdateExtractStatusRequest request)
+    {
+        if (request?.Ids == null || !request.Ids.Any())
+        {
+            return BadRequest("No IDs provided");
+        }
+
+        var rates = _dataStore.GetNegotiatedRates()
+            .Where(r => request.Ids.Contains(r.Id))
+            .ToList();
+
+        foreach (var rate in rates)
+        {
+            rate.B2bStatus = request.Status ?? "Extracted";
+            rate.B2bExtractDate = request.ExtractDate ?? DateTime.UtcNow;
+            rate.ExtractRequested = false;
+            _dataStore.UpdateNegotiatedRate(rate);
+        }
+
+        _lastExtractTime = DateTime.UtcNow;
+        _totalExtracts++;
+
+        return Ok(new
+        {
+            updatedCount = rates.Count,
+            status = request.Status,
+            extractDate = request.ExtractDate
         });
     }
 
