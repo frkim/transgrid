@@ -229,6 +229,18 @@
                 <i class="bi bi-file-earmark-text me-2"></i>Implementation Details
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="usecase01-tab" data-bs-toggle="tab" data-bs-target="#usecase01" 
+                    type="button" role="tab" aria-controls="usecase01" aria-selected="false">
+                <i class="bi bi-train-front me-2"></i>UC01: RNE Ops
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="usecase02-tab" data-bs-toggle="tab" data-bs-target="#usecase02" 
+                    type="button" role="tab" aria-controls="usecase02" aria-selected="false">
+                <i class="bi bi-cloud-arrow-up me-2"></i>UC02: Salesforce Rates
+            </button>
+        </li>
     </ul>
 
     <!-- Tab Content -->
@@ -244,6 +256,24 @@
         </div>
         <div class="tab-pane fade" id="details" role="tabpanel" aria-labelledby="details-tab">
             <div class="markdown-body" id="details-content">
+                <div class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="usecase01" role="tabpanel" aria-labelledby="usecase01-tab">
+            <div class="markdown-body" id="usecase01-content">
+                <div class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="usecase02" role="tabpanel" aria-labelledby="usecase02-tab">
+            <div class="markdown-body" id="usecase02-content">
                 <div class="loading-spinner">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Loading...</span>
@@ -279,6 +309,8 @@
         // Markdown content from server (properly escaped)
         const useCasesMarkdown = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.UseCasesMarkdown));
         const useCaseDetailsMarkdown = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.UseCaseDetailsMarkdown));
+        const useCase01Markdown = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.UseCase01Markdown));
+        const useCase02Markdown = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.UseCase02Markdown));
 
         // Render markdown on page load
         document.addEventListener('DOMContentLoaded', function() {
@@ -289,6 +321,14 @@
             // Render Details tab
             const detailsContent = document.getElementById('details-content');
             detailsContent.innerHTML = marked.parse(useCaseDetailsMarkdown);
+
+            // Render Use Case 01 tab
+            const usecase01Content = document.getElementById('usecase01-content');
+            usecase01Content.innerHTML = marked.parse(useCase01Markdown);
+
+            // Render Use Case 02 tab
+            const usecase02Content = document.getElementById('usecase02-content');
+            usecase02Content.innerHTML = marked.parse(useCase02Markdown);
             
             // Apply syntax highlighting to code blocks
             document.querySelectorAll('pre code').forEach((block) => {
