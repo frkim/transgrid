@@ -12,6 +12,16 @@
         </div>
     </div>
 
+    <!-- Azure Function Status Banner -->
+    <div class="row mb-3">
+        <div class="col">
+            <div id="azureStatusBanner" class="alert alert-info" style="display: none;">
+                <i class="bi bi-cloud"></i> <span id="azureStatusMessage">Checking Azure Function status...</span>
+                <span id="azureStatusEndpoint" class="float-end"></span>
+            </div>
+        </div>
+    </div>
+
     <!-- Stats Row -->
     <div class="row mb-4">
         <div class="col-md-3">
@@ -52,6 +62,34 @@
     <div class="row">
         <!-- Simulation Panel -->
         <div class="col-md-4">
+            <!-- Azure Function Integration Panel -->
+            <div class="card mb-3 border-primary">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-cloud-arrow-up"></i> Azure Function (Real Processing)
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">Call the deployed Azure Function to process CIF data in real-time.</p>
+                    <form id="azureProcessForm">
+                        <div class="mb-3">
+                            <label for="azureFileType" class="form-label">File Type</label>
+                            <select class="form-select" id="azureFileType">
+                                <option value="update">Update (Hourly Delta)</option>
+                                <option value="full">Full (Weekly Refresh)</option>
+                            </select>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="forceRefresh">
+                            <label class="form-check-label" for="forceRefresh">
+                                Force Refresh (bypass cache)
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100" id="azureProcessBtn">
+                            <i class="bi bi-cloud-lightning"></i> Process via Azure Function
+                        </button>
+                    </form>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-header bg-dark text-white">
                     <i class="bi bi-play-circle"></i> CIF Processing Simulation
@@ -73,8 +111,8 @@
                             <label for="filterRate" class="form-label">Filter Rate (CIF_stp_indicator != N): <span id="filterRateValue">30%</span></label>
                             <input type="range" class="form-range" id="filterRate" min="0" max="80" value="30">
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="bi bi-lightning"></i> Run CIF Processing
+                        <button type="submit" class="btn btn-secondary w-100">
+                            <i class="bi bi-lightning"></i> Run Local Simulation
                         </button>
                     </form>
                     
@@ -126,6 +164,7 @@
                         <li><strong>Decompress:</strong> GZIP streaming</li>
                         <li><strong>Parse:</strong> NDJSON line-by-line</li>
                         <li><strong>Filter:</strong> CIF_stp_indicator = N</li>
+                        <li><strong>Deduplicate:</strong> Redis/HashSet cache</li>
                         <li><strong>Transform:</strong> Map to Protobuf</li>
                         <li><strong>Publish:</strong> gRPC to Message Store</li>
                     </ol>
@@ -282,6 +321,10 @@
     const apiBase = '';
     let allData = [];
     let powerTypeFilter = 'ALL';
+    let azureFunctionConfigured = false;
+    
+    // Check Azure Function status on load
+    checkAzureFunctionStatus();
     
     // Update slider values
     document.getElementById('recordCount').addEventListener('input', function() {
@@ -316,6 +359,147 @@
     // Load initial data
     loadData();
     loadStats();
+    
+    // Check Azure Function status
+    async function checkAzureFunctionStatus() {
+        try {
+            const response = await fetch(`${apiBase}/api/NetworkRail/azure-status`);
+            const status = await response.json();
+            
+            const banner = document.getElementById('azureStatusBanner');
+            const message = document.getElementById('azureStatusMessage');
+            const endpoint = document.getElementById('azureStatusEndpoint');
+            const btn = document.getElementById('azureProcessBtn');
+            
+            banner.style.display = 'block';
+            azureFunctionConfigured = status.configured;
+            
+            if (status.configured) {
+                banner.className = 'alert alert-success';
+                message.innerHTML = '<i class="bi bi-check-circle"></i> Azure Function Connected';
+                endpoint.textContent = status.endpoint || '';
+                btn.disabled = false;
+            } else {
+                banner.className = 'alert alert-warning';
+                message.innerHTML = '<i class="bi bi-exclamation-triangle"></i> ' + status.message;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="bi bi-cloud-slash"></i> Not Configured';
+            }
+        } catch (err) {
+            console.error('Failed to check Azure Function status', err);
+        }
+    }
+    
+    // Azure Function processing
+    document.getElementById('azureProcessForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        if (!azureFunctionConfigured) {
+            alert('Azure Function endpoint is not configured. Set AzureFunctionEndpoint in appsettings.json');
+            return;
+        }
+        
+        const fileType = document.getElementById('azureFileType').value;
+        const forceRefresh = document.getElementById('forceRefresh').checked;
+        
+        showProgress();
+        const btn = document.getElementById('azureProcessBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+        
+        try {
+            const response = await fetch(`${apiBase}/api/NetworkRail/process-azure`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileType, forceRefresh })
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                displayAzureResults({ 
+                    success: false, 
+                    error: result.error || 'Azure Function returned an error',
+                    details: result.details || JSON.stringify(result)
+                });
+            } else {
+                displayAzureResults(result);
+            }
+        } catch (err) {
+            displayAzureResults({ 
+                success: false, 
+                error: 'Processing failed: ' + err.message
+            });
+        }
+        
+        hideProgress();
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-cloud-lightning"></i> Process via Azure Function';
+    });
+    
+    function displayAzureResults(result) {
+        const container = document.getElementById('resultsContainer');
+        
+        if (result.error || result.success === false) {
+            container.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong><i class="bi bi-x-circle"></i> Azure Function Error</strong><br>
+                    ${result.error || 'Unknown error'}
+                    ${result.details ? `<pre class="mt-2 small">${result.details}</pre>` : ''}
+                </div>
+            `;
+            return;
+        }
+        
+        const stats = result.statistics || {};
+        container.innerHTML = `
+            <div class="alert alert-success">
+                <strong><i class="bi bi-cloud-check"></i> Azure Function Processing Complete</strong><br>
+                Process ID: <code>${result.processId || 'N/A'}</code> | Status: ${result.status || 'Success'}
+            </div>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card border-primary">
+                        <div class="card-body text-center">
+                            <h4 class="text-primary">${stats.totalLines || 0}</h4>
+                            <small>Total Lines</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-success">
+                        <div class="card-body text-center">
+                            <h4 class="text-success">${stats.schedulesProcessed || 0}</h4>
+                            <small>Schedules Processed</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-warning">
+                        <div class="card-body text-center">
+                            <h4 class="text-warning">${stats.schedulesFiltered || 0}</h4>
+                            <small>Filtered Out</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-info">
+                        <div class="card-body text-center">
+                            <h4 class="text-info">${stats.eventsPublished || 0}</h4>
+                            <small>Events Published</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            ${stats.processingTimeMs ? `<p class="text-muted small mt-2">Processing time: ${stats.processingTimeMs}ms</p>` : ''}
+            ${result.events && result.events.length > 0 ? `
+                <div class="mt-3">
+                    <h6>Sample Event:</h6>
+                    <pre class="bg-dark text-light p-2 small" style="max-height: 200px; overflow: auto;">${JSON.stringify(result.events[0], null, 2)}</pre>
+                </div>
+            ` : ''}
+        `;
+    }
     
     // Simulate CIF processing
     document.getElementById('simulateForm').addEventListener('submit', async function(e) {

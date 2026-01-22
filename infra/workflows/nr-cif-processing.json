@@ -1,0 +1,113 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "actions": {
+      "Initialize_RunId": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "RunId",
+              "type": "string",
+              "value": "@{guid()}"
+            }
+          ]
+        },
+        "runAfter": {},
+        "trackedProperties": {
+          "workflowType": "CifProcessing",
+          "runId": "@{variables('RunId')}"
+        }
+      },
+      "Call_CIF_Processing_Function": {
+        "type": "Http",
+        "inputs": {
+          "method": "POST",
+          "uri": "@{appsetting('FUNCTION_ENDPOINT')}/api/ProcessCifOnDemand",
+          "headers": {
+            "Content-Type": "application/json",
+            "X-Correlation-Id": "@{variables('RunId')}"
+          },
+          "body": {
+            "fileType": "update",
+            "forceRefresh": false
+          },
+          "retryPolicy": {
+            "type": "exponential",
+            "count": 3,
+            "interval": "PT10S",
+            "minimumInterval": "PT5S",
+            "maximumInterval": "PT1M"
+          }
+        },
+        "runAfter": {
+          "Initialize_RunId": ["Succeeded"]
+        },
+        "limit": {
+          "timeout": "PT10M"
+        }
+      },
+      "Parse_Response": {
+        "type": "ParseJson",
+        "inputs": {
+          "content": "@body('Call_CIF_Processing_Function')",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "processId": { "type": "string" },
+              "status": { "type": "string" },
+              "statistics": {
+                "type": "object",
+                "properties": {
+                  "totalLines": { "type": "integer" },
+                  "schedulesProcessed": { "type": "integer" },
+                  "schedulesFiltered": { "type": "integer" },
+                  "eventsPublished": { "type": "integer" },
+                  "processingTimeMs": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "runAfter": {
+          "Call_CIF_Processing_Function": ["Succeeded"]
+        }
+      },
+      "Response": {
+        "type": "Response",
+        "kind": "Http",
+        "inputs": {
+          "statusCode": 200,
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "runId": "@{variables('RunId')}",
+            "status": "@body('Parse_Response')?['status']",
+            "statistics": "@body('Parse_Response')?['statistics']"
+          }
+        },
+        "runAfter": {
+          "Parse_Response": ["Succeeded"]
+        }
+      }
+    },
+    "triggers": {
+      "Manual_HTTP_Trigger": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "fileType": { "type": "string" },
+              "forceRefresh": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "contentVersion": "1.0.0.0"
+  },
+  "kind": "Stateful"
+}

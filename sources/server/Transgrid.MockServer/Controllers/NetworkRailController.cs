@@ -9,14 +9,18 @@ namespace Transgrid.MockServer.Controllers;
 public class NetworkRailController : ControllerBase
 {
     private readonly DataStore _dataStore;
+    private readonly IConfiguration _configuration;
+    private readonly IHttpClientFactory _httpClientFactory;
     private static DateTime _lastRunTime = DateTime.MinValue;
     private static int _filesProcessed = 0;
     private static int _totalPublished = 0;
     private static int _totalFiltered = 0;
 
-    public NetworkRailController(DataStore dataStore)
+    public NetworkRailController(DataStore dataStore, IConfiguration configuration, IHttpClientFactory httpClientFactory)
     {
         _dataStore = dataStore;
+        _configuration = configuration;
+        _httpClientFactory = httpClientFactory;
     }
 
     [HttpGet]
@@ -115,6 +119,117 @@ public class NetworkRailController : ControllerBase
             recordCount,
             timestamp = DateTime.UtcNow.ToString("O"),
             source = "https://datafeeds.networkrail.co.uk/ntrod/CifFileAuthenticate"
+        });
+    }
+
+    /// <summary>
+    /// Call the real Azure Function for CIF processing
+    /// </summary>
+    [HttpPost("process-azure")]
+    public async Task<ActionResult> ProcessViaAzureFunction([FromBody] AzureCifProcessRequest request)
+    {
+        var functionEndpoint = _configuration["AzureFunctionEndpoint"];
+        if (string.IsNullOrEmpty(functionEndpoint))
+        {
+            return BadRequest(new { error = "Azure Function endpoint not configured. Set AzureFunctionEndpoint in appsettings.json" });
+        }
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromMinutes(5);
+            
+            var requestBody = new
+            {
+                fileType = request.FileType ?? "update",
+                forceRefresh = request.ForceRefresh
+            };
+
+            var correlationId = Guid.NewGuid().ToString();
+            client.DefaultRequestHeaders.Add("X-Correlation-Id", correlationId);
+
+            var response = await client.PostAsJsonAsync(
+                $"{functionEndpoint}/api/ProcessCifOnDemand",
+                requestBody
+            );
+
+            var content = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return StatusCode((int)response.StatusCode, new
+                {
+                    error = "Azure Function returned an error",
+                    statusCode = (int)response.StatusCode,
+                    correlationId,
+                    details = content
+                });
+            }
+
+            return Content(content, "application/json");
+        }
+        catch (HttpRequestException ex)
+        {
+            return StatusCode(503, new
+            {
+                error = "Failed to connect to Azure Function",
+                message = ex.Message,
+                hint = "Make sure the Azure Function is deployed and running"
+            });
+        }
+        catch (TaskCanceledException)
+        {
+            return StatusCode(504, new
+            {
+                error = "Request timed out",
+                message = "The Azure Function did not respond within the timeout period"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Transform a single CIF schedule via Azure Function
+    /// </summary>
+    [HttpPost("transform-azure")]
+    public async Task<ActionResult> TransformViaAzureFunction([FromBody] object cifSchedule)
+    {
+        var functionEndpoint = _configuration["AzureFunctionEndpoint"];
+        if (string.IsNullOrEmpty(functionEndpoint))
+        {
+            return BadRequest(new { error = "Azure Function endpoint not configured" });
+        }
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            var response = await client.PostAsJsonAsync(
+                $"{functionEndpoint}/api/TransformCifSchedule",
+                cifSchedule
+            );
+
+            var content = await response.Content.ReadAsStringAsync();
+            return Content(content, "application/json");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "Failed to call Azure Function", message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get the Azure Function configuration status
+    /// </summary>
+    [HttpGet("azure-status")]
+    public ActionResult GetAzureFunctionStatus()
+    {
+        var functionEndpoint = _configuration["AzureFunctionEndpoint"];
+        return Ok(new
+        {
+            configured = !string.IsNullOrEmpty(functionEndpoint),
+            endpoint = string.IsNullOrEmpty(functionEndpoint) ? null : $"{functionEndpoint}/api/...",
+            message = string.IsNullOrEmpty(functionEndpoint)
+                ? "Azure Function endpoint not configured. Set 'AzureFunctionEndpoint' in appsettings.json"
+                : "Azure Function endpoint is configured"
         });
     }
 

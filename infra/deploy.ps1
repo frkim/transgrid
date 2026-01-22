@@ -1,14 +1,21 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-    Deploys the RNE Operational Plans Export infrastructure to Azure.
+    Deploys the Azure Integration Services infrastructure to Azure.
 
 .DESCRIPTION
-    This script deploys all Azure resources for the RNE Export demo including:
+    This script deploys all Azure resources for the integration demo including:
+    - Use Case 1: RNE Operational Plans Export
+    - Use Case 2: Salesforce Negotiated Rates Export
+    - Use Case 3: Network Rail CIF File Processing
+    
+    Resources deployed:
     - Storage Account with Blob, Table, and File shares
     - Container Apps Environment with SFTP servers (primary and backup)
     - Logic Apps Standard for workflow orchestration
-    - Azure Functions for JSON to XML transformation
+    - Azure Functions for transformations and CIF processing
+    - Azure Service Bus for event-driven integration
+    - Azure Managed Redis for reference data caching
     - Application Insights for monitoring
 
 .PARAMETER ResourceGroupName
@@ -71,8 +78,13 @@ $InformationPreference = "Continue"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 Write-Information "=============================================="
-Write-Information "RNE Operational Plans Export - Azure Deployment"
+Write-Information "Azure Integration Services - Deployment"
 Write-Information "=============================================="
+Write-Information ""
+Write-Information "Use Cases:"
+Write-Information "  1. RNE Operational Plans Export"
+Write-Information "  2. Salesforce Negotiated Rates Export"
+Write-Information "  3. Network Rail CIF File Processing"
 Write-Information ""
 Write-Information "Resource Group: $ResourceGroupName"
 Write-Information "Location: $Location"
@@ -224,6 +236,20 @@ Write-Information "Logic App: $($outputs.logicAppName.value)"
 Write-Information "Logic App URL: https://$($outputs.logicAppHostname.value)"
 Write-Information ""
 Write-Information "Application Insights: $($outputs.appInsightsName.value)"
+Write-Information ""
+
+# Show Redis Cache info if deployed
+if ($outputs.redisCacheName -and $outputs.redisCacheName.value) {
+    Write-Information "Redis Cache: $($outputs.redisCacheName.value)"
+    Write-Information "Redis Host: $($outputs.redisCacheHostName.value)"
+    Write-Information ""
+}
+
+# Show CIF Archive container info
+if ($outputs.cifArchiveContainer -and $outputs.cifArchiveContainer.value) {
+    Write-Information "CIF Archive Container: $($outputs.cifArchiveContainer.value)"
+    Write-Information ""
+}
 
 # Upload SSH keys to Azure Files
 if (-not $SkipSshKeyGeneration -and (Test-Path $sshKeyDir)) {

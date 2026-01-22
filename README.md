@@ -6,10 +6,11 @@ Demo of Azure Integration Services for a train company. This simulates an integr
 
 The solution consists of:
 
-- **Azure Functions** - XML/CSV transformation services for TAF-JSG and negotiated rates formats
+- **Azure Functions** - XML/CSV transformation services for TAF-JSG, negotiated rates formats, and CIF schedule processing
 - **Logic Apps Standard** - Workflow orchestration for RNE data export and Salesforce integration
 - **Azure Service Bus** - Message-driven triggers for Salesforce Platform Event integration
 - **Azure Storage** - Blob storage and Table storage for data persistence
+- **Azure Managed Redis** - Caching layer for Network Rail station mappings and deduplication
 - **SFTP Container Apps** - Primary and backup SFTP servers for RNE file delivery
 - **Mock Server Container Apps** - Mock API server for OpsAPI, Salesforce, and Network Rail endpoints
 
@@ -25,6 +26,21 @@ Event-driven integration triggered by Salesforce Platform Events (simulated via 
 - **Route 3 (BeNe)**: External partners - Distributor-connected rates
 
 Each route generates a CSV file uploaded to Azure Blob Storage (internal or external containers).
+
+### Use Case 3: Network Rail CIF File Processing
+Scheduled Azure Function-based integration that processes Network Rail CIF (Common Interface Format) schedule files:
+- **Hourly Updates**: Timer-triggered function runs every hour to fetch delta updates
+- **Weekly Full Refresh**: Complete CIF file processing on Sundays at 02:00 UTC
+- **On-Demand Processing**: HTTP-triggered function for manual processing
+
+**Processing Pipeline:**
+1. Download CIF files from Network Rail NTROD API
+2. Stream decompress GZIP content (memory-efficient for 50+ MB files)
+3. Parse NDJSON line-by-line using streaming parser
+4. Filter schedules by CIF_stp_indicator (only permanent schedules)
+5. Deduplicate using Redis Cache or in-memory HashSet
+6. Transform to `InfrastructurePathwayConfirmed` Protobuf events
+7. Publish to gRPC Message Store endpoint
 
 ## Quick Start
 
@@ -108,12 +124,20 @@ transgrid/
 │   ├── deploy.ps1              # Infrastructure deployment
 │   ├── main.bicep              # Main Bicep template
 │   ├── main.bicepparam         # Bicep parameters
-│   │   ├── modules/                # Bicep modules
+│   ├── modules/                # Bicep modules
 │   │   ├── function-app.bicep  # Azure Functions
 │   │   ├── logic-app.bicep     # Logic Apps Standard
 │   │   ├── mock-server.bicep   # Mock Server Container App
+│   │   ├── redis-cache.bicep   # Azure Managed Redis (UC3)
 │   │   ├── sftp-server.bicep   # SFTP Container Apps
 │   │   └── service-bus.bicep   # Azure Service Bus
+│   ├── workflows/              # Logic Apps workflow definitions
+│   │   ├── rne-daily-export.json
+│   │   ├── rne-d2-export.json
+│   │   ├── rne-http-trigger.json
+│   │   ├── rne-retry-failed.json
+│   │   ├── sf-negotiated-rates.json
+│   │   └── nr-cif-processing.json  # Use Case 3: Network Rail CIF
 │   └── scripts/
 │       ├── deploy-all.ps1      # Master deployment script
 │       ├── deploy-mockserver.ps1 # Mock Server deployment
@@ -122,6 +146,18 @@ transgrid/
 ├── sources/
 │   ├── functions/              # Azure Functions
 │   │   └── Transgrid.Functions/
+│   │       ├── Functions/
+│   │       │   ├── TransformTrainPlan.cs   # Use Case 1
+│   │       │   ├── TransformNegotiatedRates.cs  # Use Case 2
+│   │       │   └── ProcessCifFile.cs       # Use Case 3
+│   │       ├── Models/
+│   │       │   ├── TrainPlanModels.cs      # Use Case 1
+│   │       │   ├── NegotiatedRatesModels.cs # Use Case 2
+│   │       │   └── CifModels.cs            # Use Case 3
+│   │       └── Services/
+│   │           ├── XmlTransformService.cs  # Use Case 1
+│   │           ├── CsvTransformService.cs  # Use Case 2
+│   │           └── CifProcessingService.cs # Use Case 3
 │   ├── logicapps/              # Logic Apps Standard
 │   │   ├── host.json
 │   │   ├── connections.json
@@ -129,11 +165,16 @@ transgrid/
 │   │   ├── rne-d2-export/          # Use Case 1: RNE D-2 export
 │   │   ├── rne-http-trigger/       # Use Case 1: Manual trigger
 │   │   ├── rne-retry-failed/       # Use Case 1: Retry failed
-│   │   └── sf-negotiated-rates/    # Use Case 2: Salesforce export
+│   │   ├── sf-negotiated-rates/    # Use Case 2: Salesforce export
+│   │   └── nr-cif-processing/      # Use Case 3: Network Rail CIF
 │   ├── server/                 # Mock Server
 │   │   └── Transgrid.MockServer/
 │   │       ├── Dockerfile      # Container image build
+│   │       ├── Pages/NetworkRail/  # Use Case 3 demo UI
 │   │       └── ...
 │   └── tests/                  # Test projects
 └── documents/                  # Documentation
+    ├── UseCase_01_RNE_Ops.md
+    ├── UseCase_02_Salesforce_Rates.md
+    └── UseCase_03_NetworkRail_CIF.md
 ```

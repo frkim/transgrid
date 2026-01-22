@@ -18,6 +18,9 @@ var host = new HostBuilder()
         
         // Register services for Salesforce Negotiated Rates (Use Case 2)
         services.AddSingleton<ICsvGeneratorService, CsvGeneratorService>();
+        
+        // Register services for Network Rail CIF Processing (Use Case 3)
+        services.AddSingleton<ICifProcessingService, CifProcessingService>();
     })
     .Build();
 

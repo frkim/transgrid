@@ -39,7 +39,7 @@ This document describes the Azure Integration Services implementation for downlo
 │  └─────────────────┘     └─────────────────┘     └─────────────────┘       │        │
 │                                                                              │        │
 │                    ┌───────────────────────────────┐                        │        │
-│                    │     Azure Cache for Redis     │                        │        │
+│                    │      Azure Managed Redis      │                        │        │
 │                    │     (Reference Data Cache)    │                        │        │
 │                    └───────────────────────────────┘                        │        │
 │                                                                              │        │
@@ -63,7 +63,7 @@ This document describes the Azure Integration Services implementation for downlo
 | **Azure Functions** | Timer-triggered file processing with streaming | Flex Consumption |
 | **Azure Blob Storage** | Archive downloaded CIF files | Standard LRS |
 | **Azure Table Storage** | Store deduplication state for events | Standard LRS |
-| **Azure Cache for Redis** | Cache station/points reference data | Basic C0 |
+| **Azure Managed Redis** | Cache station/points reference data | Balanced B1 |
 | **Application Insights** | Monitoring and diagnostics | Pay-as-you-go |
 | **Azure Key Vault** | Store Network Rail credentials | Standard |
 
@@ -941,9 +941,9 @@ public class NetworkRailClient
 | Azure Functions | Flex Consumption, ~2000 executions/day | ~$10 |
 | Azure Blob Storage | 50 GB, LRS | ~$5 |
 | Azure Table Storage | 10 GB, 50K transactions/day | ~$5 |
-| Azure Cache for Redis | Basic C0 | ~$16 |
+| Azure Managed Redis | Balanced B1 | ~$55 |
 | Key Vault | Standard, ~1000 operations/day | ~$1 |
-| **Total** | | **~$37/month** |
+| **Total** | | **~$76/month** |
 
 ## Testing Checklist
 
@@ -966,5 +966,5 @@ Before deploying:
 - [CIF File Format Specification](https://wiki.openraildata.com/index.php/CIF_File_Format)
 - [Azure Functions Timer Trigger](https://learn.microsoft.com/azure/azure-functions/functions-bindings-timer)
 - [gRPC for .NET Documentation](https://learn.microsoft.com/aspnet/core/grpc/)
-- [Azure Cache for Redis](https://learn.microsoft.com/azure/azure-cache-for-redis/)
+- [Azure Managed Redis](https://learn.microsoft.com/azure/azure-cache-for-redis/managed-redis/managed-redis-overview)
 - [GZipStream Class](https://learn.microsoft.com/dotnet/api/system.io.compression.gzipstream)

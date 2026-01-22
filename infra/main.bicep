@@ -2,6 +2,7 @@
 // Deploys all Azure resources for the integration scenarios:
 // - Use Case 1: RNE Operational Plans Export
 // - Use Case 2: Salesforce Negotiated Rates Export (with Service Bus)
+// - Use Case 3: Network Rail CIF File Processing
 
 targetScope = 'resourceGroup'
 
@@ -29,6 +30,9 @@ param opsApiEndpoint string = 'http://localhost:5000'
 
 @description('Enable Salesforce integration with Service Bus')
 param enableSalesforceIntegration bool = true
+
+@description('Enable Network Rail CIF processing with Redis cache')
+param enableNetworkRailIntegration bool = true
 
 // Variables
 var uniqueSuffix = uniqueString(resourceGroup().id)
@@ -138,6 +142,15 @@ resource salesforceExternalContainer 'Microsoft.Storage/storageAccounts/blobServ
   }
 }
 
+// Blob Container for CIF archive files (Use Case 3)
+resource cifArchiveContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'cif-archive'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
 resource functionReleasesContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   parent: blobService
   name: 'function-releases'
@@ -161,6 +174,18 @@ resource failedExportsTable 'Microsoft.Storage/storageAccounts/tableServices/tab
 resource salesforceExtractsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
   parent: tableService
   name: 'SalesforceExtracts'
+}
+
+// Table for CIF deduplication (Use Case 3)
+resource cifDeduplicationTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  parent: tableService
+  name: 'CifDeduplication'
+}
+
+// Table for CIF processing logs (Use Case 3)
+resource cifProcessingLogsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  parent: tableService
+  name: 'CifProcessingLogs'
 }
 
 // File Shares for SFTP
@@ -277,6 +302,17 @@ module serviceBus 'modules/service-bus.bicep' = if (enableSalesforceIntegration)
     environment: environment
     skuName: 'Standard'
     logAnalyticsWorkspaceId: logAnalytics.id
+  }
+}
+
+// Redis Cache for Network Rail CIF Processing (Use Case 3)
+module redisCache 'modules/redis-cache.bicep' = if (enableNetworkRailIntegration) {
+  name: 'redis-cache-deployment'
+  params: {
+    nameSuffix: baseName
+    location: location
+    environment: environment
+    skuName: 'Balanced_B1'
   }
 }
 
@@ -410,3 +446,8 @@ output serviceBusNamespaceFqdn string = enableSalesforceIntegration ? serviceBus
 // Salesforce storage containers
 output salesforceInternalContainer string = salesforceInternalContainer.name
 output salesforceExternalContainer string = salesforceExternalContainer.name
+
+// Network Rail CIF Processing outputs (Use Case 3)
+output cifArchiveContainer string = cifArchiveContainer.name
+output redisCacheName string = enableNetworkRailIntegration ? redisCache.outputs.redisCacheName : ''
+output redisCacheHostName string = enableNetworkRailIntegration ? redisCache.outputs.redisCacheHostName : ''

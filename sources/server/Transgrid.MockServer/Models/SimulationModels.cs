@@ -52,3 +52,19 @@ public class CifProcessRequest
     /// </summary>
     public double FilterRate { get; set; } = 0.3;
 }
+
+/// <summary>
+/// Request model for calling the real Azure Function for CIF processing
+/// </summary>
+public class AzureCifProcessRequest
+{
+    /// <summary>
+    /// File type: "update" for hourly delta, "full" for weekly full refresh
+    /// </summary>
+    public string? FileType { get; set; } = "update";
+    
+    /// <summary>
+    /// Whether to force a full refresh bypassing caching
+    /// </summary>
+    public bool ForceRefresh { get; set; } = false;
+}

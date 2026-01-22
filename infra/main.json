@@ -1,0 +1,2379 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.38.33.27573",
+      "templateHash": "17434325462266441457"
+    }
+  },
+  "parameters": {
+    "environment": {
+      "type": "string",
+      "defaultValue": "dev",
+      "metadata": {
+        "description": "Environment name (dev, test, prod)"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources"
+      }
+    },
+    "baseName": {
+      "type": "string",
+      "defaultValue": "transgrid",
+      "metadata": {
+        "description": "Base name for resources"
+      }
+    },
+    "sftpUsername": {
+      "type": "string",
+      "defaultValue": "rneuser",
+      "metadata": {
+        "description": "SFTP username"
+      }
+    },
+    "sftpPassword": {
+      "type": "securestring",
+      "defaultValue": "MicrosoftAzure123!",
+      "metadata": {
+        "description": "SFTP password"
+      }
+    },
+    "allowedSftpIpRanges": {
+      "type": "array",
+      "defaultValue": [],
+      "metadata": {
+        "description": "Allowed IP addresses for SFTP access (CIDR notation)"
+      }
+    },
+    "opsApiEndpoint": {
+      "type": "string",
+      "defaultValue": "http://localhost:5000",
+      "metadata": {
+        "description": "Operations API endpoint (GraphQL mock server)"
+      }
+    },
+    "enableSalesforceIntegration": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable Salesforce integration with Service Bus"
+      }
+    },
+    "enableNetworkRailIntegration": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable Network Rail CIF processing with Redis cache"
+      }
+    }
+  },
+  "variables": {
+    "uniqueSuffix": "[uniqueString(resourceGroup().id)]",
+    "storageAccountName": "[format('st{0}{1}', parameters('baseName'), variables('uniqueSuffix'))]",
+    "logAnalyticsName": "[format('log-{0}-{1}', parameters('baseName'), parameters('environment'))]",
+    "appInsightsName": "[format('appi-{0}-{1}', parameters('baseName'), parameters('environment'))]",
+    "containerAppsEnvName": "[format('cae-{0}-{1}', parameters('baseName'), parameters('environment'))]",
+    "vnetName": "[format('vnet-{0}-{1}', parameters('baseName'), parameters('environment'))]",
+    "tags": {
+      "Environment": "[parameters('environment')]",
+      "Project": "Transgrid Azure Integration Services",
+      "ManagedBy": "Bicep"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2023-11-01",
+      "name": "[variables('vnetName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.0.0.0/16"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "snet-container-apps",
+            "properties": {
+              "addressPrefix": "10.0.0.0/23",
+              "delegations": [
+                {
+                  "name": "Microsoft.App.environments",
+                  "properties": {
+                    "serviceName": "Microsoft.App/environments"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "snet-integration",
+            "properties": {
+              "addressPrefix": "10.0.2.0/24",
+              "delegations": [
+                {
+                  "name": "Microsoft.Web.serverFarms",
+                  "properties": {
+                    "serviceName": "Microsoft.Web/serverFarms"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('storageAccountName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "supportsHttpsTrafficOnly": true,
+        "minimumTlsVersion": "TLS1_2",
+        "allowBlobPublicAccess": false,
+        "accessTier": "Hot"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}', variables('storageAccountName'), 'default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'ci-rne-export')]",
+      "properties": {
+        "publicAccess": "None"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'salesforce-internal')]",
+      "properties": {
+        "publicAccess": "None"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'salesforce-external')]",
+      "properties": {
+        "publicAccess": "None"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'cif-archive')]",
+      "properties": {
+        "publicAccess": "None"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'function-releases')]",
+      "properties": {
+        "publicAccess": "None"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/tableServices",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}', variables('storageAccountName'), 'default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/tableServices/tables",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'FailedExports')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/tableServices', variables('storageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/tableServices/tables",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'SalesforceExtracts')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/tableServices', variables('storageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/tableServices/tables",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'CifDeduplication')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/tableServices', variables('storageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/tableServices/tables",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'CifProcessingLogs')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/tableServices', variables('storageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}', variables('storageAccountName'), 'default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'sftpdata')]",
+      "properties": {
+        "shareQuota": 10
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('storageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'sshkeys')]",
+      "properties": {
+        "shareQuota": 1
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('storageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'scripts')]",
+      "properties": {
+        "shareQuota": 1
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('storageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'sftpdata-backup')]",
+      "properties": {
+        "shareQuota": 10
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('storageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'sshkeys-backup')]",
+      "properties": {
+        "shareQuota": 1
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('storageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'scripts-backup')]",
+      "properties": {
+        "shareQuota": 1
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('storageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('logAnalyticsName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": 30
+      }
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[variables('appInsightsName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/managedEnvironments",
+      "apiVersion": "2023-11-02-preview",
+      "name": "[variables('containerAppsEnvName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "vnetConfiguration": {
+          "infrastructureSubnetId": "[reference(resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), '2023-11-01').subnets[0].id]"
+        },
+        "appLogsConfiguration": {
+          "destination": "log-analytics",
+          "logAnalyticsConfiguration": {
+            "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName')), '2023-09-01').customerId]",
+            "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName')), '2023-09-01').primarySharedKey]"
+          }
+        },
+        "workloadProfiles": [
+          {
+            "name": "Consumption",
+            "workloadProfileType": "Consumption"
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enableSalesforceIntegration')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "servicebus-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "nameSuffix": {
+            "value": "[parameters('baseName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "skuName": {
+            "value": "Standard"
+          },
+          "logAnalyticsWorkspaceId": {
+            "value": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "634900731225116035"
+            }
+          },
+          "parameters": {
+            "nameSuffix": {
+              "type": "string",
+              "metadata": {
+                "description": "Name suffix for Service Bus Namespace"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Location for all resources"
+              }
+            },
+            "environment": {
+              "type": "string",
+              "defaultValue": "dev",
+              "metadata": {
+                "description": "Environment name (dev, test, prod)"
+              }
+            },
+            "skuName": {
+              "type": "string",
+              "defaultValue": "Standard",
+              "allowedValues": [
+                "Basic",
+                "Standard",
+                "Premium"
+              ],
+              "metadata": {
+                "description": "Service Bus Namespace SKU"
+              }
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Log Analytics Workspace ID for diagnostics"
+              }
+            }
+          },
+          "variables": {
+            "serviceBusNamespaceName": "[format('sbns-{0}-{1}', parameters('nameSuffix'), parameters('environment'))]",
+            "tags": {
+              "Environment": "[parameters('environment')]",
+              "Project": "Transgrid Salesforce Integration",
+              "Component": "Service Bus",
+              "ManagedBy": "Bicep"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.ServiceBus/namespaces",
+              "apiVersion": "2024-01-01",
+              "name": "[variables('serviceBusNamespaceName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('tags')]",
+              "sku": {
+                "name": "[parameters('skuName')]",
+                "tier": "[parameters('skuName')]"
+              },
+              "properties": {
+                "minimumTlsVersion": "1.2",
+                "publicNetworkAccess": "Enabled",
+                "disableLocalAuth": false,
+                "zoneRedundant": false
+              }
+            },
+            {
+              "type": "Microsoft.ServiceBus/namespaces/queues",
+              "apiVersion": "2024-01-01",
+              "name": "[format('{0}/{1}', variables('serviceBusNamespaceName'), 'salesforce-negotiated-rates')]",
+              "properties": {
+                "lockDuration": "PT1M",
+                "maxSizeInMegabytes": 1024,
+                "requiresDuplicateDetection": false,
+                "requiresSession": false,
+                "defaultMessageTimeToLive": "P14D",
+                "deadLetteringOnMessageExpiration": true,
+                "duplicateDetectionHistoryTimeWindow": "PT10M",
+                "maxDeliveryCount": 10,
+                "enablePartitioning": false,
+                "enableExpress": false
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ServiceBus/namespaces', variables('serviceBusNamespaceName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ServiceBus/namespaces/queues/authorizationRules",
+              "apiVersion": "2024-01-01",
+              "name": "[format('{0}/{1}/{2}', variables('serviceBusNamespaceName'), 'salesforce-negotiated-rates', 'SendPolicy')]",
+              "properties": {
+                "rights": [
+                  "Send"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusNamespaceName'), 'salesforce-negotiated-rates')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ServiceBus/namespaces/queues/authorizationRules",
+              "apiVersion": "2024-01-01",
+              "name": "[format('{0}/{1}/{2}', variables('serviceBusNamespaceName'), 'salesforce-negotiated-rates', 'ListenPolicy')]",
+              "properties": {
+                "rights": [
+                  "Listen"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ServiceBus/namespaces/queues', variables('serviceBusNamespaceName'), 'salesforce-negotiated-rates')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ServiceBus/namespaces/AuthorizationRules",
+              "apiVersion": "2024-01-01",
+              "name": "[format('{0}/{1}', variables('serviceBusNamespaceName'), 'ManagePolicy')]",
+              "properties": {
+                "rights": [
+                  "Listen",
+                  "Manage",
+                  "Send"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ServiceBus/namespaces', variables('serviceBusNamespaceName'))]"
+              ]
+            },
+            {
+              "condition": "[not(empty(parameters('logAnalyticsWorkspaceId')))]",
+              "type": "Microsoft.Insights/diagnosticSettings",
+              "apiVersion": "2021-05-01-preview",
+              "scope": "[format('Microsoft.ServiceBus/namespaces/{0}', variables('serviceBusNamespaceName'))]",
+              "name": "[format('{0}-diagnostics', variables('serviceBusNamespaceName'))]",
+              "properties": {
+                "workspaceId": "[parameters('logAnalyticsWorkspaceId')]",
+                "logs": [
+                  {
+                    "categoryGroup": "allLogs",
+                    "enabled": true
+                  }
+                ],
+                "metrics": [
+                  {
+                    "category": "AllMetrics",
+                    "enabled": true
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ServiceBus/namespaces', variables('serviceBusNamespaceName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "serviceBusNamespaceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.ServiceBus/namespaces', variables('serviceBusNamespaceName'))]"
+            },
+            "serviceBusNamespaceName": {
+              "type": "string",
+              "value": "[variables('serviceBusNamespaceName')]"
+            },
+            "queueName": {
+              "type": "string",
+              "value": "salesforce-negotiated-rates"
+            },
+            "serviceBusNamespaceFqdn": {
+              "type": "string",
+              "value": "[format('{0}.servicebus.windows.net', variables('serviceBusNamespaceName'))]"
+            },
+            "sendConnectionString": {
+              "type": "string",
+              "value": "[listKeys(resourceId('Microsoft.ServiceBus/namespaces/queues/authorizationRules', variables('serviceBusNamespaceName'), 'salesforce-negotiated-rates', 'SendPolicy'), '2024-01-01').primaryConnectionString]"
+            },
+            "listenConnectionString": {
+              "type": "string",
+              "value": "[listKeys(resourceId('Microsoft.ServiceBus/namespaces/queues/authorizationRules', variables('serviceBusNamespaceName'), 'salesforce-negotiated-rates', 'ListenPolicy'), '2024-01-01').primaryConnectionString]"
+            },
+            "namespaceConnectionString": {
+              "type": "string",
+              "value": "[listKeys(resourceId('Microsoft.ServiceBus/namespaces/AuthorizationRules', variables('serviceBusNamespaceName'), 'ManagePolicy'), '2024-01-01').primaryConnectionString]"
+            },
+            "sendPrimaryKey": {
+              "type": "string",
+              "value": "[listKeys(resourceId('Microsoft.ServiceBus/namespaces/queues/authorizationRules', variables('serviceBusNamespaceName'), 'salesforce-negotiated-rates', 'SendPolicy'), '2024-01-01').primaryKey]"
+            },
+            "listenPrimaryKey": {
+              "type": "string",
+              "value": "[listKeys(resourceId('Microsoft.ServiceBus/namespaces/queues/authorizationRules', variables('serviceBusNamespaceName'), 'salesforce-negotiated-rates', 'ListenPolicy'), '2024-01-01').primaryKey]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enableNetworkRailIntegration')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "redis-cache-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "nameSuffix": {
+            "value": "[parameters('baseName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "skuName": {
+            "value": "Balanced_B1"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "5559783260569215635"
+            }
+          },
+          "parameters": {
+            "nameSuffix": {
+              "type": "string",
+              "metadata": {
+                "description": "Name suffix for the Managed Redis cluster"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Location for the Managed Redis cluster"
+              }
+            },
+            "environment": {
+              "type": "string",
+              "defaultValue": "dev",
+              "metadata": {
+                "description": "Environment name"
+              }
+            },
+            "skuName": {
+              "type": "string",
+              "defaultValue": "Balanced_B1",
+              "allowedValues": [
+                "Balanced_B0",
+                "Balanced_B1",
+                "Balanced_B3",
+                "Balanced_B5",
+                "Balanced_B10",
+                "Balanced_B20",
+                "Balanced_B50",
+                "Balanced_B100",
+                "Balanced_B150",
+                "Balanced_B250",
+                "Balanced_B350",
+                "Balanced_B500",
+                "Balanced_B700",
+                "Balanced_B1000",
+                "ComputeOptimized_X3",
+                "ComputeOptimized_X5",
+                "ComputeOptimized_X10",
+                "ComputeOptimized_X20",
+                "ComputeOptimized_X50",
+                "ComputeOptimized_X100",
+                "ComputeOptimized_X150",
+                "ComputeOptimized_X250",
+                "ComputeOptimized_X350",
+                "ComputeOptimized_X500",
+                "ComputeOptimized_X700",
+                "MemoryOptimized_M10",
+                "MemoryOptimized_M20",
+                "MemoryOptimized_M50",
+                "MemoryOptimized_M100",
+                "MemoryOptimized_M150",
+                "MemoryOptimized_M250",
+                "MemoryOptimized_M350",
+                "MemoryOptimized_M500",
+                "MemoryOptimized_M700",
+                "MemoryOptimized_M1000",
+                "MemoryOptimized_M1500",
+                "MemoryOptimized_M2000"
+              ],
+              "metadata": {
+                "description": "SKU name for the Managed Redis cluster"
+              }
+            },
+            "minimumTlsVersion": {
+              "type": "string",
+              "defaultValue": "1.2",
+              "allowedValues": [
+                "1.2",
+                "1.3"
+              ],
+              "metadata": {
+                "description": "Minimum TLS version"
+              }
+            }
+          },
+          "variables": {
+            "managedRedisName": "[format('redisenterprise-{0}-{1}', parameters('nameSuffix'), parameters('environment'))]",
+            "databaseName": "default",
+            "tags": {
+              "Environment": "[parameters('environment')]",
+              "Project": "Transgrid Azure Integration Services",
+              "ManagedBy": "Bicep",
+              "UseCase": "NetworkRail-CIF-Processing"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Cache/redisEnterprise",
+              "apiVersion": "2024-10-01",
+              "name": "[variables('managedRedisName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('tags')]",
+              "sku": {
+                "name": "[parameters('skuName')]"
+              },
+              "properties": {
+                "minimumTlsVersion": "[parameters('minimumTlsVersion')]"
+              }
+            },
+            {
+              "type": "Microsoft.Cache/redisEnterprise/databases",
+              "apiVersion": "2024-10-01",
+              "name": "[format('{0}/{1}', variables('managedRedisName'), variables('databaseName'))]",
+              "properties": {
+                "clientProtocol": "Encrypted",
+                "port": 10000,
+                "clusteringPolicy": "OSSCluster",
+                "evictionPolicy": "AllKeysLRU",
+                "persistence": {
+                  "aofEnabled": false,
+                  "rdbEnabled": false
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Cache/redisEnterprise', variables('managedRedisName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "redisCacheName": {
+              "type": "string",
+              "value": "[variables('managedRedisName')]"
+            },
+            "redisCacheId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Cache/redisEnterprise', variables('managedRedisName'))]"
+            },
+            "redisCacheHostName": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Cache/redisEnterprise', variables('managedRedisName')), '2024-10-01').hostName]"
+            },
+            "redisCachePort": {
+              "type": "int",
+              "value": "[reference(resourceId('Microsoft.Cache/redisEnterprise/databases', variables('managedRedisName'), variables('databaseName')), '2024-10-01').port]"
+            },
+            "redisDatabaseName": {
+              "type": "string",
+              "value": "[variables('databaseName')]"
+            },
+            "redisDatabaseId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Cache/redisEnterprise/databases', variables('managedRedisName'), variables('databaseName'))]"
+            },
+            "redisCacheConnectionString": {
+              "type": "string",
+              "value": "[format('{0}:{1},password={2},ssl=True,abortConnect=False', reference(resourceId('Microsoft.Cache/redisEnterprise', variables('managedRedisName')), '2024-10-01').hostName, reference(resourceId('Microsoft.Cache/redisEnterprise/databases', variables('managedRedisName'), variables('databaseName')), '2024-10-01').port, listKeys(resourceId('Microsoft.Cache/redisEnterprise/databases', variables('managedRedisName'), variables('databaseName')), '2024-10-01').primaryKey)]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "sftp-primary-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "nameSuffix": {
+            "value": "rne-primary"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "sftpUsername": {
+            "value": "[parameters('sftpUsername')]"
+          },
+          "sftpPassword": {
+            "value": "[parameters('sftpPassword')]"
+          },
+          "containerAppsEnvironmentId": {
+            "value": "[resourceId('Microsoft.App/managedEnvironments', variables('containerAppsEnvName'))]"
+          },
+          "storageAccountName": {
+            "value": "[variables('storageAccountName')]"
+          },
+          "storageAccountKey": {
+            "value": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-05-01').keys[0].value]"
+          },
+          "allowedIpRanges": {
+            "value": "[parameters('allowedSftpIpRanges')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "4196412937893322698"
+            }
+          },
+          "parameters": {
+            "nameSuffix": {
+              "type": "string",
+              "metadata": {
+                "description": "Name suffix for resources"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Location for all resources"
+              }
+            },
+            "environment": {
+              "type": "string",
+              "defaultValue": "dev",
+              "metadata": {
+                "description": "Environment name (dev, test, prod)"
+              }
+            },
+            "sftpUsername": {
+              "type": "string",
+              "metadata": {
+                "description": "SFTP username"
+              }
+            },
+            "sftpPassword": {
+              "type": "securestring",
+              "metadata": {
+                "description": "SFTP password"
+              }
+            },
+            "containerAppsEnvironmentId": {
+              "type": "string",
+              "metadata": {
+                "description": "Container Apps Environment ID"
+              }
+            },
+            "storageAccountName": {
+              "type": "string",
+              "metadata": {
+                "description": "Storage Account name for Azure Files"
+              }
+            },
+            "storageAccountKey": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Storage Account key"
+              }
+            },
+            "allowedIpRanges": {
+              "type": "array",
+              "defaultValue": [],
+              "metadata": {
+                "description": "Allowed IP addresses for SFTP access (CIDR notation)"
+              }
+            },
+            "externalPort": {
+              "type": "int",
+              "defaultValue": 22,
+              "metadata": {
+                "description": "External port for SFTP access"
+              }
+            },
+            "cpuCores": {
+              "type": "string",
+              "defaultValue": "0.5",
+              "metadata": {
+                "description": "CPU cores for the container"
+              }
+            },
+            "memoryGb": {
+              "type": "string",
+              "defaultValue": "1",
+              "metadata": {
+                "description": "Memory in GB for the container"
+              }
+            }
+          },
+          "variables": {
+            "containerAppName": "[format('sftp-{0}-{1}', parameters('nameSuffix'), parameters('environment'))]",
+            "sftpUsersEnvVar": "[format('{0}:{1}:::upload', parameters('sftpUsername'), parameters('sftpPassword'))]",
+            "fileShares": [
+              {
+                "name": "[format('sftpdata-{0}', parameters('nameSuffix'))]",
+                "shareName": "sftpdata",
+                "accessMode": "ReadWrite",
+                "mountPath": "[format('/home/{0}/upload', parameters('sftpUsername'))]"
+              },
+              {
+                "name": "[format('sshkeys-{0}', parameters('nameSuffix'))]",
+                "shareName": "sshkeys",
+                "accessMode": "ReadOnly",
+                "mountPath": "/etc/sftpkeys"
+              },
+              {
+                "name": "[format('scripts-{0}', parameters('nameSuffix'))]",
+                "shareName": "scripts",
+                "accessMode": "ReadOnly",
+                "mountPath": "/etc/sftp.d"
+              }
+            ]
+          },
+          "resources": [
+            {
+              "type": "Microsoft.App/containerApps",
+              "apiVersion": "2023-11-02-preview",
+              "name": "[variables('containerAppName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "managedEnvironmentId": "[parameters('containerAppsEnvironmentId')]",
+                "configuration": {
+                  "activeRevisionsMode": "Single",
+                  "ingress": {
+                    "copy": [
+                      {
+                        "name": "ipSecurityRestrictions",
+                        "count": "[length(parameters('allowedIpRanges'))]",
+                        "input": {
+                          "name": "[format('allow-rule-{0}', copyIndex('ipSecurityRestrictions'))]",
+                          "description": "[format('Allow access from {0}', parameters('allowedIpRanges')[copyIndex('ipSecurityRestrictions')])]",
+                          "ipAddressRange": "[parameters('allowedIpRanges')[copyIndex('ipSecurityRestrictions')]]",
+                          "action": "Allow"
+                        }
+                      }
+                    ],
+                    "external": true,
+                    "targetPort": 22,
+                    "transport": "tcp",
+                    "exposedPort": "[parameters('externalPort')]"
+                  },
+                  "secrets": [
+                    {
+                      "name": "sftp-users",
+                      "value": "[variables('sftpUsersEnvVar')]"
+                    },
+                    {
+                      "name": "storage-key",
+                      "value": "[parameters('storageAccountKey')]"
+                    }
+                  ]
+                },
+                "template": {
+                  "copy": [
+                    {
+                      "name": "volumes",
+                      "count": "[length(variables('fileShares'))]",
+                      "input": {
+                        "name": "[variables('fileShares')[copyIndex('volumes')].name]",
+                        "storageName": "[variables('fileShares')[copyIndex('volumes')].name]",
+                        "storageType": "AzureFile"
+                      }
+                    }
+                  ],
+                  "containers": [
+                    {
+                      "copy": [
+                        {
+                          "name": "volumeMounts",
+                          "count": "[length(variables('fileShares'))]",
+                          "input": {
+                            "volumeName": "[variables('fileShares')[copyIndex('volumeMounts')].name]",
+                            "mountPath": "[variables('fileShares')[copyIndex('volumeMounts')].mountPath]"
+                          }
+                        }
+                      ],
+                      "name": "sftp",
+                      "image": "atmoz/sftp:alpine",
+                      "resources": {
+                        "cpu": "[json(parameters('cpuCores'))]",
+                        "memory": "[format('{0}Gi', parameters('memoryGb'))]"
+                      },
+                      "env": [
+                        {
+                          "name": "SFTP_USERS",
+                          "secretRef": "sftp-users"
+                        }
+                      ]
+                    }
+                  ],
+                  "scale": {
+                    "minReplicas": 1,
+                    "maxReplicas": 2
+                  }
+                }
+              }
+            },
+            {
+              "copy": {
+                "name": "storageMounts",
+                "count": "[length(variables('fileShares'))]"
+              },
+              "type": "Microsoft.App/managedEnvironments/storages",
+              "apiVersion": "2023-11-02-preview",
+              "name": "[format('{0}/{1}', last(split(parameters('containerAppsEnvironmentId'), '/')), variables('fileShares')[copyIndex()].name)]",
+              "properties": {
+                "azureFile": {
+                  "accountName": "[parameters('storageAccountName')]",
+                  "accountKey": "[parameters('storageAccountKey')]",
+                  "shareName": "[variables('fileShares')[copyIndex()].shareName]",
+                  "accessMode": "[variables('fileShares')[copyIndex()].accessMode]"
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "containerAppId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.App/containerApps', variables('containerAppName'))]"
+            },
+            "containerAppName": {
+              "type": "string",
+              "value": "[variables('containerAppName')]"
+            },
+            "containerAppFqdn": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.App/containerApps', variables('containerAppName')), '2023-11-02-preview').configuration.ingress.fqdn]"
+            },
+            "sftpEndpoint": {
+              "type": "string",
+              "value": "[format('{0}:{1}', reference(resourceId('Microsoft.App/containerApps', variables('containerAppName')), '2023-11-02-preview').configuration.ingress.fqdn, parameters('externalPort'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', variables('containerAppsEnvName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "sftp-backup-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "nameSuffix": {
+            "value": "rne-backup"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "sftpUsername": {
+            "value": "[parameters('sftpUsername')]"
+          },
+          "sftpPassword": {
+            "value": "[parameters('sftpPassword')]"
+          },
+          "containerAppsEnvironmentId": {
+            "value": "[resourceId('Microsoft.App/managedEnvironments', variables('containerAppsEnvName'))]"
+          },
+          "storageAccountName": {
+            "value": "[variables('storageAccountName')]"
+          },
+          "storageAccountKey": {
+            "value": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-05-01').keys[0].value]"
+          },
+          "allowedIpRanges": {
+            "value": "[parameters('allowedSftpIpRanges')]"
+          },
+          "externalPort": {
+            "value": 2222
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "4196412937893322698"
+            }
+          },
+          "parameters": {
+            "nameSuffix": {
+              "type": "string",
+              "metadata": {
+                "description": "Name suffix for resources"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Location for all resources"
+              }
+            },
+            "environment": {
+              "type": "string",
+              "defaultValue": "dev",
+              "metadata": {
+                "description": "Environment name (dev, test, prod)"
+              }
+            },
+            "sftpUsername": {
+              "type": "string",
+              "metadata": {
+                "description": "SFTP username"
+              }
+            },
+            "sftpPassword": {
+              "type": "securestring",
+              "metadata": {
+                "description": "SFTP password"
+              }
+            },
+            "containerAppsEnvironmentId": {
+              "type": "string",
+              "metadata": {
+                "description": "Container Apps Environment ID"
+              }
+            },
+            "storageAccountName": {
+              "type": "string",
+              "metadata": {
+                "description": "Storage Account name for Azure Files"
+              }
+            },
+            "storageAccountKey": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Storage Account key"
+              }
+            },
+            "allowedIpRanges": {
+              "type": "array",
+              "defaultValue": [],
+              "metadata": {
+                "description": "Allowed IP addresses for SFTP access (CIDR notation)"
+              }
+            },
+            "externalPort": {
+              "type": "int",
+              "defaultValue": 22,
+              "metadata": {
+                "description": "External port for SFTP access"
+              }
+            },
+            "cpuCores": {
+              "type": "string",
+              "defaultValue": "0.5",
+              "metadata": {
+                "description": "CPU cores for the container"
+              }
+            },
+            "memoryGb": {
+              "type": "string",
+              "defaultValue": "1",
+              "metadata": {
+                "description": "Memory in GB for the container"
+              }
+            }
+          },
+          "variables": {
+            "containerAppName": "[format('sftp-{0}-{1}', parameters('nameSuffix'), parameters('environment'))]",
+            "sftpUsersEnvVar": "[format('{0}:{1}:::upload', parameters('sftpUsername'), parameters('sftpPassword'))]",
+            "fileShares": [
+              {
+                "name": "[format('sftpdata-{0}', parameters('nameSuffix'))]",
+                "shareName": "sftpdata",
+                "accessMode": "ReadWrite",
+                "mountPath": "[format('/home/{0}/upload', parameters('sftpUsername'))]"
+              },
+              {
+                "name": "[format('sshkeys-{0}', parameters('nameSuffix'))]",
+                "shareName": "sshkeys",
+                "accessMode": "ReadOnly",
+                "mountPath": "/etc/sftpkeys"
+              },
+              {
+                "name": "[format('scripts-{0}', parameters('nameSuffix'))]",
+                "shareName": "scripts",
+                "accessMode": "ReadOnly",
+                "mountPath": "/etc/sftp.d"
+              }
+            ]
+          },
+          "resources": [
+            {
+              "type": "Microsoft.App/containerApps",
+              "apiVersion": "2023-11-02-preview",
+              "name": "[variables('containerAppName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "managedEnvironmentId": "[parameters('containerAppsEnvironmentId')]",
+                "configuration": {
+                  "activeRevisionsMode": "Single",
+                  "ingress": {
+                    "copy": [
+                      {
+                        "name": "ipSecurityRestrictions",
+                        "count": "[length(parameters('allowedIpRanges'))]",
+                        "input": {
+                          "name": "[format('allow-rule-{0}', copyIndex('ipSecurityRestrictions'))]",
+                          "description": "[format('Allow access from {0}', parameters('allowedIpRanges')[copyIndex('ipSecurityRestrictions')])]",
+                          "ipAddressRange": "[parameters('allowedIpRanges')[copyIndex('ipSecurityRestrictions')]]",
+                          "action": "Allow"
+                        }
+                      }
+                    ],
+                    "external": true,
+                    "targetPort": 22,
+                    "transport": "tcp",
+                    "exposedPort": "[parameters('externalPort')]"
+                  },
+                  "secrets": [
+                    {
+                      "name": "sftp-users",
+                      "value": "[variables('sftpUsersEnvVar')]"
+                    },
+                    {
+                      "name": "storage-key",
+                      "value": "[parameters('storageAccountKey')]"
+                    }
+                  ]
+                },
+                "template": {
+                  "copy": [
+                    {
+                      "name": "volumes",
+                      "count": "[length(variables('fileShares'))]",
+                      "input": {
+                        "name": "[variables('fileShares')[copyIndex('volumes')].name]",
+                        "storageName": "[variables('fileShares')[copyIndex('volumes')].name]",
+                        "storageType": "AzureFile"
+                      }
+                    }
+                  ],
+                  "containers": [
+                    {
+                      "copy": [
+                        {
+                          "name": "volumeMounts",
+                          "count": "[length(variables('fileShares'))]",
+                          "input": {
+                            "volumeName": "[variables('fileShares')[copyIndex('volumeMounts')].name]",
+                            "mountPath": "[variables('fileShares')[copyIndex('volumeMounts')].mountPath]"
+                          }
+                        }
+                      ],
+                      "name": "sftp",
+                      "image": "atmoz/sftp:alpine",
+                      "resources": {
+                        "cpu": "[json(parameters('cpuCores'))]",
+                        "memory": "[format('{0}Gi', parameters('memoryGb'))]"
+                      },
+                      "env": [
+                        {
+                          "name": "SFTP_USERS",
+                          "secretRef": "sftp-users"
+                        }
+                      ]
+                    }
+                  ],
+                  "scale": {
+                    "minReplicas": 1,
+                    "maxReplicas": 2
+                  }
+                }
+              }
+            },
+            {
+              "copy": {
+                "name": "storageMounts",
+                "count": "[length(variables('fileShares'))]"
+              },
+              "type": "Microsoft.App/managedEnvironments/storages",
+              "apiVersion": "2023-11-02-preview",
+              "name": "[format('{0}/{1}', last(split(parameters('containerAppsEnvironmentId'), '/')), variables('fileShares')[copyIndex()].name)]",
+              "properties": {
+                "azureFile": {
+                  "accountName": "[parameters('storageAccountName')]",
+                  "accountKey": "[parameters('storageAccountKey')]",
+                  "shareName": "[variables('fileShares')[copyIndex()].shareName]",
+                  "accessMode": "[variables('fileShares')[copyIndex()].accessMode]"
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "containerAppId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.App/containerApps', variables('containerAppName'))]"
+            },
+            "containerAppName": {
+              "type": "string",
+              "value": "[variables('containerAppName')]"
+            },
+            "containerAppFqdn": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.App/containerApps', variables('containerAppName')), '2023-11-02-preview').configuration.ingress.fqdn]"
+            },
+            "sftpEndpoint": {
+              "type": "string",
+              "value": "[format('{0}:{1}', reference(resourceId('Microsoft.App/containerApps', variables('containerAppName')), '2023-11-02-preview').configuration.ingress.fqdn, parameters('externalPort'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', variables('containerAppsEnvName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "mock-server-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "nameSuffix": {
+            "value": "transgrid-mock"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "containerAppsEnvironmentId": {
+            "value": "[resourceId('Microsoft.App/managedEnvironments', variables('containerAppsEnvName'))]"
+          },
+          "containerImage": {
+            "value": "mcr.microsoft.com/dotnet/aspnet:9.0"
+          },
+          "targetPort": {
+            "value": 8080
+          },
+          "cpuCores": {
+            "value": "0.5"
+          },
+          "memoryGb": {
+            "value": "1"
+          },
+          "functionUrl": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'function-app-deployment'), '2025-04-01').outputs.functionEndpoint.value]"
+          },
+          "functionKey": {
+            "value": ""
+          },
+          "serviceBusConnectionString": "[if(parameters('enableSalesforceIntegration'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'servicebus-deployment'), '2025-04-01').outputs.sendConnectionString.value), createObject('value', ''))]",
+          "serviceBusQueueName": "[if(parameters('enableSalesforceIntegration'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'servicebus-deployment'), '2025-04-01').outputs.queueName.value), createObject('value', ''))]"
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "10052294745133575887"
+            }
+          },
+          "parameters": {
+            "nameSuffix": {
+              "type": "string",
+              "defaultValue": "mockserver",
+              "metadata": {
+                "description": "Name suffix for resources"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Location for all resources"
+              }
+            },
+            "environment": {
+              "type": "string",
+              "defaultValue": "dev",
+              "metadata": {
+                "description": "Environment name (dev, test, prod)"
+              }
+            },
+            "containerAppsEnvironmentId": {
+              "type": "string",
+              "metadata": {
+                "description": "Container Apps Environment ID"
+              }
+            },
+            "containerRegistry": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Container Registry name (leave empty for Docker Hub or MCR)"
+              }
+            },
+            "containerImage": {
+              "type": "string",
+              "defaultValue": "mcr.microsoft.com/dotnet/aspnet:9.0",
+              "metadata": {
+                "description": "Container image (default uses MCR .NET 9 base image)"
+              }
+            },
+            "cpuCores": {
+              "type": "string",
+              "defaultValue": "0.5",
+              "metadata": {
+                "description": "CPU cores for the container"
+              }
+            },
+            "memoryGb": {
+              "type": "string",
+              "defaultValue": "1",
+              "metadata": {
+                "description": "Memory in GB for the container"
+              }
+            },
+            "targetPort": {
+              "type": "int",
+              "defaultValue": 8080,
+              "metadata": {
+                "description": "Target port for the application"
+              }
+            },
+            "environmentVariables": {
+              "type": "array",
+              "defaultValue": [],
+              "metadata": {
+                "description": "Environment variables for the container"
+              }
+            },
+            "functionUrl": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Function URL for the TransformTrainPlan function"
+              }
+            },
+            "functionKey": {
+              "type": "securestring",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Function Key for the TransformTrainPlan function"
+              }
+            },
+            "serviceBusConnectionString": {
+              "type": "securestring",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Service Bus connection string for sending Salesforce messages"
+              }
+            },
+            "serviceBusQueueName": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Service Bus queue name for Salesforce messages"
+              }
+            }
+          },
+          "variables": {
+            "containerAppName": "[format('ca-{0}-{1}', parameters('nameSuffix'), parameters('environment'))]",
+            "functionKeySecret": "[if(not(empty(parameters('functionKey'))), createArray(createObject('name', 'function-key', 'value', parameters('functionKey'))), createArray())]",
+            "serviceBusSecret": "[if(not(empty(parameters('serviceBusConnectionString'))), createArray(createObject('name', 'servicebus-connection', 'value', parameters('serviceBusConnectionString'))), createArray())]",
+            "allSecrets": "[concat(variables('functionKeySecret'), variables('serviceBusSecret'))]",
+            "functionKeyEnv": "[if(not(empty(parameters('functionKey'))), createArray(createObject('name', 'FunctionDebug__FunctionKey', 'secretRef', 'function-key')), createArray(createObject('name', 'FunctionDebug__FunctionKey', 'value', '')))]",
+            "serviceBusEnv": "[if(not(empty(parameters('serviceBusConnectionString'))), createArray(createObject('name', 'ServiceBus__ConnectionString', 'secretRef', 'servicebus-connection')), createArray(createObject('name', 'ServiceBus__ConnectionString', 'value', '')))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.App/containerApps",
+              "apiVersion": "2023-11-02-preview",
+              "name": "[variables('containerAppName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "managedEnvironmentId": "[parameters('containerAppsEnvironmentId')]",
+                "configuration": {
+                  "activeRevisionsMode": "Single",
+                  "secrets": "[variables('allSecrets')]",
+                  "ingress": {
+                    "external": true,
+                    "targetPort": "[parameters('targetPort')]",
+                    "transport": "http",
+                    "allowInsecure": false,
+                    "corsPolicy": {
+                      "allowedOrigins": [
+                        "*"
+                      ],
+                      "allowedMethods": [
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "DELETE",
+                        "OPTIONS"
+                      ],
+                      "allowedHeaders": [
+                        "*"
+                      ],
+                      "maxAge": 3600
+                    }
+                  },
+                  "registries": "[if(not(empty(parameters('containerRegistry'))), createArray(createObject('server', parameters('containerRegistry'))), createArray())]"
+                },
+                "template": {
+                  "containers": [
+                    {
+                      "name": "mock-server",
+                      "image": "[parameters('containerImage')]",
+                      "resources": {
+                        "cpu": "[json(parameters('cpuCores'))]",
+                        "memory": "[format('{0}Gi', parameters('memoryGb'))]"
+                      },
+                      "env": "[concat(createArray(createObject('name', 'ASPNETCORE_ENVIRONMENT', 'value', if(equals(parameters('environment'), 'prod'), 'Production', 'Development')), createObject('name', 'ASPNETCORE_URLS', 'value', format('http://+:{0}', parameters('targetPort'))), createObject('name', 'FunctionDebug__FunctionUrl', 'value', parameters('functionUrl')), createObject('name', 'ServiceBus__QueueName', 'value', parameters('serviceBusQueueName'))), variables('functionKeyEnv'), variables('serviceBusEnv'), parameters('environmentVariables'))]"
+                    }
+                  ],
+                  "scale": {
+                    "minReplicas": 1,
+                    "maxReplicas": 3,
+                    "rules": [
+                      {
+                        "name": "http-scaling",
+                        "http": {
+                          "metadata": {
+                            "concurrentRequests": "100"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "containerAppId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.App/containerApps', variables('containerAppName'))]"
+            },
+            "containerAppName": {
+              "type": "string",
+              "value": "[variables('containerAppName')]"
+            },
+            "containerAppFqdn": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.App/containerApps', variables('containerAppName')), '2023-11-02-preview').configuration.ingress.fqdn]"
+            },
+            "mockServerEndpoint": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', variables('containerAppName')), '2023-11-02-preview').configuration.ingress.fqdn)]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', variables('containerAppsEnvName'))]",
+        "[resourceId('Microsoft.Resources/deployments', 'function-app-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'servicebus-deployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "function-app-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "functionAppName": {
+            "value": "[format('{0}-transform', parameters('baseName'))]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "storageAccountName": {
+            "value": "[variables('storageAccountName')]"
+          },
+          "storageConnectionString": {
+            "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};EndpointSuffix={1};AccountKey={2}', variables('storageAccountName'), environment().suffixes.storage, listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-05-01').keys[0].value)]"
+          },
+          "appInsightsInstrumentationKey": {
+            "value": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').InstrumentationKey]"
+          },
+          "appInsightsConnectionString": {
+            "value": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').ConnectionString]"
+          },
+          "opsApiEndpoint": {
+            "value": "[parameters('opsApiEndpoint')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "7084590290232440431"
+            }
+          },
+          "parameters": {
+            "functionAppName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Function App"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Location for all resources"
+              }
+            },
+            "environment": {
+              "type": "string",
+              "defaultValue": "dev",
+              "metadata": {
+                "description": "Environment name (dev, test, prod)"
+              }
+            },
+            "storageAccountName": {
+              "type": "string",
+              "metadata": {
+                "description": "Storage Account name"
+              }
+            },
+            "storageConnectionString": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Storage Account connection string"
+              }
+            },
+            "appInsightsInstrumentationKey": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Application Insights Instrumentation Key"
+              }
+            },
+            "appInsightsConnectionString": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Application Insights Connection String"
+              }
+            },
+            "opsApiEndpoint": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Operations API endpoint (GraphQL)"
+              }
+            }
+          },
+          "variables": {
+            "hostingPlanName": "[format('asp-func-{0}', parameters('functionAppName'))]",
+            "functionAppFullName": "[format('func-{0}-{1}', parameters('functionAppName'), parameters('environment'))]",
+            "tags": {
+              "Environment": "[parameters('environment')]",
+              "Project": "Transgrid RNE Export",
+              "Component": "Azure Functions",
+              "ManagedBy": "Bicep"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/serverfarms",
+              "apiVersion": "2023-12-01",
+              "name": "[variables('hostingPlanName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('tags')]",
+              "sku": {
+                "name": "FC1",
+                "tier": "FlexConsumption"
+              },
+              "kind": "functionapp",
+              "properties": {
+                "reserved": true
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2023-12-01",
+              "name": "[variables('functionAppFullName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('tags')]",
+              "kind": "functionapp,linux",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+                "httpsOnly": true,
+                "publicNetworkAccess": "Enabled",
+                "siteConfig": {
+                  "use32BitWorkerProcess": false,
+                  "ftpsState": "Disabled",
+                  "minTlsVersion": "1.2",
+                  "http20Enabled": true,
+                  "cors": {
+                    "allowedOrigins": [
+                      "https://portal.azure.com"
+                    ],
+                    "supportCredentials": false
+                  },
+                  "appSettings": [
+                    {
+                      "name": "FUNCTIONS_EXTENSION_VERSION",
+                      "value": "~4"
+                    },
+                    {
+                      "name": "AzureWebJobsStorage",
+                      "value": "[parameters('storageConnectionString')]"
+                    },
+                    {
+                      "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                      "value": "[parameters('appInsightsInstrumentationKey')]"
+                    },
+                    {
+                      "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                      "value": "[parameters('appInsightsConnectionString')]"
+                    },
+                    {
+                      "name": "OPS_API_ENDPOINT",
+                      "value": "[parameters('opsApiEndpoint')]"
+                    }
+                  ]
+                },
+                "functionAppConfig": {
+                  "deployment": {
+                    "storage": {
+                      "type": "blobContainer",
+                      "value": "[format('https://{0}.blob.{1}/function-releases', parameters('storageAccountName'), environment().suffixes.storage)]",
+                      "authentication": {
+                        "type": "StorageAccountConnectionString",
+                        "storageAccountConnectionStringName": "AzureWebJobsStorage"
+                      }
+                    }
+                  },
+                  "scaleAndConcurrency": {
+                    "maximumInstanceCount": 100,
+                    "instanceMemoryMB": 2048
+                  },
+                  "runtime": {
+                    "name": "dotnet-isolated",
+                    "version": "8.0"
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "functionAppId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/sites', variables('functionAppFullName'))]"
+            },
+            "functionAppName": {
+              "type": "string",
+              "value": "[variables('functionAppFullName')]"
+            },
+            "functionAppDefaultHostname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppFullName')), '2023-12-01').defaultHostName]"
+            },
+            "functionAppPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppFullName')), '2023-12-01', 'full').identity.principalId]"
+            },
+            "functionEndpoint": {
+              "type": "string",
+              "value": "[format('https://{0}/api', reference(resourceId('Microsoft.Web/sites', variables('functionAppFullName')), '2023-12-01').defaultHostName)]"
+            },
+            "hostingPlanId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "logic-app-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "logicAppName": {
+            "value": "[format('{0}-rne-export', parameters('baseName'))]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "storageAccountName": {
+            "value": "[variables('storageAccountName')]"
+          },
+          "storageConnectionString": {
+            "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};EndpointSuffix={1};AccountKey={2}', variables('storageAccountName'), environment().suffixes.storage, listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-05-01').keys[0].value)]"
+          },
+          "appInsightsInstrumentationKey": {
+            "value": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').InstrumentationKey]"
+          },
+          "appInsightsConnectionString": {
+            "value": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').ConnectionString]"
+          },
+          "blobConnectionString": {
+            "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};EndpointSuffix={1};AccountKey={2}', variables('storageAccountName'), environment().suffixes.storage, listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-05-01').keys[0].value)]"
+          },
+          "tableConnectionString": {
+            "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};EndpointSuffix={1};AccountKey={2}', variables('storageAccountName'), environment().suffixes.storage, listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-05-01').keys[0].value)]"
+          },
+          "primarySftpEndpoint": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sftp-primary-deployment'), '2025-04-01').outputs.sftpEndpoint.value]"
+          },
+          "backupSftpEndpoint": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sftp-backup-deployment'), '2025-04-01').outputs.sftpEndpoint.value]"
+          },
+          "primarySftpHost": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sftp-primary-deployment'), '2025-04-01').outputs.containerAppFqdn.value]"
+          },
+          "backupSftpHost": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sftp-backup-deployment'), '2025-04-01').outputs.containerAppFqdn.value]"
+          },
+          "sftpUsername": {
+            "value": "[parameters('sftpUsername')]"
+          },
+          "sftpPassword": {
+            "value": "[parameters('sftpPassword')]"
+          },
+          "functionEndpoint": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'function-app-deployment'), '2025-04-01').outputs.functionEndpoint.value]"
+          },
+          "opsApiEndpoint": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mock-server-deployment'), '2025-04-01').outputs.mockServerEndpoint.value]"
+          },
+          "serviceBusConnectionString": "[if(parameters('enableSalesforceIntegration'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'servicebus-deployment'), '2025-04-01').outputs.listenConnectionString.value), createObject('value', ''))]",
+          "serviceBusQueueName": "[if(parameters('enableSalesforceIntegration'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'servicebus-deployment'), '2025-04-01').outputs.queueName.value), createObject('value', ''))]",
+          "salesforceApiEndpoint": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mock-server-deployment'), '2025-04-01').outputs.mockServerEndpoint.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "14805035961598261656"
+            }
+          },
+          "parameters": {
+            "logicAppName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Logic App"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Location for all resources"
+              }
+            },
+            "environment": {
+              "type": "string",
+              "defaultValue": "dev",
+              "metadata": {
+                "description": "Environment name (dev, test, prod)"
+              }
+            },
+            "storageAccountName": {
+              "type": "string",
+              "metadata": {
+                "description": "Storage Account name for Logic App state"
+              }
+            },
+            "storageConnectionString": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Storage Account connection string"
+              }
+            },
+            "appInsightsInstrumentationKey": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Application Insights Instrumentation Key"
+              }
+            },
+            "appInsightsConnectionString": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Application Insights Connection String"
+              }
+            },
+            "blobConnectionString": {
+              "type": "securestring",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Blob Storage connection string for RNE export"
+              }
+            },
+            "tableConnectionString": {
+              "type": "securestring",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Table Storage connection string for retry state"
+              }
+            },
+            "primarySftpEndpoint": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Primary SFTP endpoint"
+              }
+            },
+            "backupSftpEndpoint": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Backup SFTP endpoint"
+              }
+            },
+            "primarySftpHost": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Primary SFTP host (without port)"
+              }
+            },
+            "backupSftpHost": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Backup SFTP host (without port)"
+              }
+            },
+            "sftpUsername": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "SFTP username"
+              }
+            },
+            "sftpPassword": {
+              "type": "securestring",
+              "defaultValue": "",
+              "metadata": {
+                "description": "SFTP password"
+              }
+            },
+            "functionEndpoint": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Azure Function endpoint for transformation"
+              }
+            },
+            "functionKey": {
+              "type": "securestring",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Azure Function key for authentication"
+              }
+            },
+            "opsApiEndpoint": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Operations API endpoint (GraphQL)"
+              }
+            },
+            "serviceBusConnectionString": {
+              "type": "securestring",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Service Bus connection string for Salesforce messages"
+              }
+            },
+            "serviceBusQueueName": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Service Bus queue name for Salesforce messages"
+              }
+            },
+            "salesforceApiEndpoint": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Salesforce API endpoint (mock server)"
+              }
+            }
+          },
+          "variables": {
+            "hostingPlanName": "[format('asp-{0}', parameters('logicAppName'))]",
+            "logicAppFullName": "[format('logic-{0}-{1}', parameters('logicAppName'), parameters('environment'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/serverfarms",
+              "apiVersion": "2023-12-01",
+              "name": "[variables('hostingPlanName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "WS1",
+                "tier": "WorkflowStandard"
+              },
+              "kind": "elastic",
+              "properties": {
+                "elasticScaleEnabled": true,
+                "maximumElasticWorkerCount": 20,
+                "isSpot": false,
+                "reserved": false
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2023-12-01",
+              "name": "[variables('logicAppFullName')]",
+              "location": "[parameters('location')]",
+              "kind": "functionapp,workflowapp",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+                "httpsOnly": true,
+                "siteConfig": {
+                  "netFrameworkVersion": "v8.0",
+                  "use32BitWorkerProcess": false,
+                  "ftpsState": "Disabled",
+                  "cors": {
+                    "allowedOrigins": [
+                      "https://portal.azure.com"
+                    ]
+                  },
+                  "appSettings": [
+                    {
+                      "name": "FUNCTIONS_EXTENSION_VERSION",
+                      "value": "~4"
+                    },
+                    {
+                      "name": "FUNCTIONS_WORKER_RUNTIME",
+                      "value": "node"
+                    },
+                    {
+                      "name": "WEBSITE_NODE_DEFAULT_VERSION",
+                      "value": "~22"
+                    },
+                    {
+                      "name": "AzureWebJobsStorage",
+                      "value": "[parameters('storageConnectionString')]"
+                    },
+                    {
+                      "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+                      "value": "[parameters('storageConnectionString')]"
+                    },
+                    {
+                      "name": "WEBSITE_CONTENTSHARE",
+                      "value": "[toLower(variables('logicAppFullName'))]"
+                    },
+                    {
+                      "name": "AzureFunctionsJobHost__extensionBundle__id",
+                      "value": "Microsoft.Azure.Functions.ExtensionBundle.Workflows"
+                    },
+                    {
+                      "name": "AzureFunctionsJobHost__extensionBundle__version",
+                      "value": "[1.*, 2.0.0)"
+                    },
+                    {
+                      "name": "APP_KIND",
+                      "value": "workflowApp"
+                    },
+                    {
+                      "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                      "value": "[parameters('appInsightsInstrumentationKey')]"
+                    },
+                    {
+                      "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                      "value": "[parameters('appInsightsConnectionString')]"
+                    },
+                    {
+                      "name": "BLOB_CONNECTION_STRING",
+                      "value": "[parameters('blobConnectionString')]"
+                    },
+                    {
+                      "name": "TABLE_CONNECTION_STRING",
+                      "value": "[parameters('tableConnectionString')]"
+                    },
+                    {
+                      "name": "PRIMARY_SFTP_ENDPOINT",
+                      "value": "[parameters('primarySftpEndpoint')]"
+                    },
+                    {
+                      "name": "BACKUP_SFTP_ENDPOINT",
+                      "value": "[parameters('backupSftpEndpoint')]"
+                    },
+                    {
+                      "name": "SFTP_PRIMARY_HOST",
+                      "value": "[parameters('primarySftpHost')]"
+                    },
+                    {
+                      "name": "SFTP_BACKUP_HOST",
+                      "value": "[parameters('backupSftpHost')]"
+                    },
+                    {
+                      "name": "SFTP_USERNAME",
+                      "value": "[parameters('sftpUsername')]"
+                    },
+                    {
+                      "name": "SFTP_PASSWORD",
+                      "value": "[parameters('sftpPassword')]"
+                    },
+                    {
+                      "name": "FUNCTION_ENDPOINT",
+                      "value": "[parameters('functionEndpoint')]"
+                    },
+                    {
+                      "name": "FUNCTION_KEY",
+                      "value": "[parameters('functionKey')]"
+                    },
+                    {
+                      "name": "OPS_API_ENDPOINT",
+                      "value": "[parameters('opsApiEndpoint')]"
+                    },
+                    {
+                      "name": "SERVICEBUS_CONNECTION_STRING",
+                      "value": "[parameters('serviceBusConnectionString')]"
+                    },
+                    {
+                      "name": "SERVICEBUS_QUEUE_NAME",
+                      "value": "[parameters('serviceBusQueueName')]"
+                    },
+                    {
+                      "name": "SALESFORCE_API_ENDPOINT",
+                      "value": "[parameters('salesforceApiEndpoint')]"
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "logicAppId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/sites', variables('logicAppFullName'))]"
+            },
+            "logicAppName": {
+              "type": "string",
+              "value": "[variables('logicAppFullName')]"
+            },
+            "logicAppDefaultHostname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', variables('logicAppFullName')), '2023-12-01').defaultHostName]"
+            },
+            "logicAppPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', variables('logicAppFullName')), '2023-12-01', 'full').identity.principalId]"
+            },
+            "hostingPlanId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
+        "[resourceId('Microsoft.Resources/deployments', 'function-app-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'mock-server-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'servicebus-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'sftp-backup-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'sftp-primary-deployment')]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "resourceGroupName": {
+      "type": "string",
+      "value": "[resourceGroup().name]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "value": "[variables('storageAccountName')]"
+    },
+    "storageAccountId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+    },
+    "blobContainerName": {
+      "type": "string",
+      "value": "ci-rne-export"
+    },
+    "tableStorageName": {
+      "type": "string",
+      "value": "FailedExports"
+    },
+    "containerAppsEnvironmentId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.App/managedEnvironments', variables('containerAppsEnvName'))]"
+    },
+    "containerAppsEnvironmentName": {
+      "type": "string",
+      "value": "[variables('containerAppsEnvName')]"
+    },
+    "primarySftpEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sftp-primary-deployment'), '2025-04-01').outputs.sftpEndpoint.value]"
+    },
+    "primarySftpFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sftp-primary-deployment'), '2025-04-01').outputs.containerAppFqdn.value]"
+    },
+    "backupSftpEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sftp-backup-deployment'), '2025-04-01').outputs.sftpEndpoint.value]"
+    },
+    "backupSftpFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sftp-backup-deployment'), '2025-04-01').outputs.containerAppFqdn.value]"
+    },
+    "functionAppName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'function-app-deployment'), '2025-04-01').outputs.functionAppName.value]"
+    },
+    "functionEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'function-app-deployment'), '2025-04-01').outputs.functionEndpoint.value]"
+    },
+    "mockServerName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mock-server-deployment'), '2025-04-01').outputs.containerAppName.value]"
+    },
+    "mockServerEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mock-server-deployment'), '2025-04-01').outputs.mockServerEndpoint.value]"
+    },
+    "mockServerFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'mock-server-deployment'), '2025-04-01').outputs.containerAppFqdn.value]"
+    },
+    "logicAppName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'logic-app-deployment'), '2025-04-01').outputs.logicAppName.value]"
+    },
+    "logicAppHostname": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'logic-app-deployment'), '2025-04-01').outputs.logicAppDefaultHostname.value]"
+    },
+    "appInsightsName": {
+      "type": "string",
+      "value": "[variables('appInsightsName')]"
+    },
+    "appInsightsInstrumentationKey": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').InstrumentationKey]"
+    },
+    "serviceBusNamespaceName": {
+      "type": "string",
+      "value": "[if(parameters('enableSalesforceIntegration'), reference(resourceId('Microsoft.Resources/deployments', 'servicebus-deployment'), '2025-04-01').outputs.serviceBusNamespaceName.value, '')]"
+    },
+    "serviceBusQueueName": {
+      "type": "string",
+      "value": "[if(parameters('enableSalesforceIntegration'), reference(resourceId('Microsoft.Resources/deployments', 'servicebus-deployment'), '2025-04-01').outputs.queueName.value, '')]"
+    },
+    "serviceBusNamespaceFqdn": {
+      "type": "string",
+      "value": "[if(parameters('enableSalesforceIntegration'), reference(resourceId('Microsoft.Resources/deployments', 'servicebus-deployment'), '2025-04-01').outputs.serviceBusNamespaceFqdn.value, '')]"
+    },
+    "salesforceInternalContainer": {
+      "type": "string",
+      "value": "salesforce-internal"
+    },
+    "salesforceExternalContainer": {
+      "type": "string",
+      "value": "salesforce-external"
+    },
+    "cifArchiveContainer": {
+      "type": "string",
+      "value": "cif-archive"
+    },
+    "redisCacheName": {
+      "type": "string",
+      "value": "[if(parameters('enableNetworkRailIntegration'), reference(resourceId('Microsoft.Resources/deployments', 'redis-cache-deployment'), '2025-04-01').outputs.redisCacheName.value, '')]"
+    },
+    "redisCacheHostName": {
+      "type": "string",
+      "value": "[if(parameters('enableNetworkRailIntegration'), reference(resourceId('Microsoft.Resources/deployments', 'redis-cache-deployment'), '2025-04-01').outputs.redisCacheHostName.value, '')]"
+    }
+  }
+}
