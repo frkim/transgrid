@@ -638,6 +638,7 @@
         document.getElementById('uc2-tab').addEventListener('shown.bs.tab', function() {
             if (!editors['uc2-input']) {
                 initializeEditor('uc2', 'javascript', 'javascript');
+                loadSampleData('uc2');
             }
         });
         
