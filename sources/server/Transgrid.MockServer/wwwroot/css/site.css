@@ -1,4 +1,4 @@
-/* Custom styles for Transgrid Mock Server */
+/* Custom styles for TransGrid */
 
 :root {
     --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -258,4 +258,20 @@ body {
 #devToolsMenu:hover {
     background: rgba(255, 255, 255, 0.2);
     transform: scale(1.1);
+}
+
+/* Use Case Navigation Badges */
+.uc1-nav-badge {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.uc2-nav-badge {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+
+.uc3-nav-badge {
+    background: linear-gradient(135deg, #f5af19 0%, #f12711 100%);
+    color: white;
 }

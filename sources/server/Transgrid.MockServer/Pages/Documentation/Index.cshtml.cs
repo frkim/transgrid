@@ -17,6 +17,7 @@ public class IndexModel : PageModel
     public string UseCaseDetailsMarkdown { get; private set; } = string.Empty;
     public string UseCase01Markdown { get; private set; } = string.Empty;
     public string UseCase02Markdown { get; private set; } = string.Empty;
+    public string UseCase03Markdown { get; private set; } = string.Empty;
 
     public void OnGet()
     {
@@ -27,6 +28,7 @@ public class IndexModel : PageModel
         var detailsPath = Path.Combine(documentsPath, "Use Case Details.md");
         var useCase01Path = Path.Combine(documentsPath, "UseCase_01_RNE_Ops.md");
         var useCase02Path = Path.Combine(documentsPath, "UseCase_02_Salesforce_Rates.md");
+        var useCase03Path = Path.Combine(documentsPath, "UseCase_03_NetworkRail_CIF.md");
 
         if (System.IO.File.Exists(useCasesPath))
         {
@@ -70,6 +72,17 @@ public class IndexModel : PageModel
         {
             _logger.LogWarning("Use Case 02 markdown file not found at: {Path}", useCase02Path);
             UseCase02Markdown = "# Use Case 02: Salesforce Negotiated Rates Export\n\nContent not available.";
+        }
+
+        if (System.IO.File.Exists(useCase03Path))
+        {
+            UseCase03Markdown = System.IO.File.ReadAllText(useCase03Path);
+            _logger.LogDebug("Loaded Use Case 03 markdown: {Length} chars", UseCase03Markdown.Length);
+        }
+        else
+        {
+            _logger.LogWarning("Use Case 03 markdown file not found at: {Path}", useCase03Path);
+            UseCase03Markdown = "# Use Case 03: Network Rail CIF Processing\n\nContent not available.";
         }
     }
 }

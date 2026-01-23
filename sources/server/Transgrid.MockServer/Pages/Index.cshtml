@@ -1,113 +1,472 @@
 @page
 @model IndexModel
 @{
-    ViewData["Title"] = "Home - Transgrid Mock Server";
+    ViewData["Title"] = "Home - TransGrid";
 }
 
-<div class="hero-section text-center py-5">
+<div class="hero-section text-center py-4">
     <div class="container">
-        <img src="/images/Transgrid_logo.png" alt="Transgrid Logo" style="max-height: 80px; margin-bottom: 1rem;">
-        <h1 class="display-4 fw-bold gradient-text mb-3">
-            Mock Server
+        <img src="/images/Transgrid_logo.png" alt="TransGrid Logo" style="max-height: 70px; margin-bottom: 0.75rem;">
+        <h1 class="display-5 fw-bold gradient-text mb-2">
+            TransGrid - Integration Platform
         </h1>
-        <p class="lead mb-4">Simulating Integration Services for Starline International</p>
-        <p class="text-muted">A comprehensive mock server for OpsAPI, Salesforce, and Network Rail API integrations</p>
+        <p class="lead mb-2">Simulating Integration Services for Starline International</p>
+        <p class="text-muted small">Testing environment for Azure Integration Services workflows</p>
     </div>
 </div>
 
-<div class="container mt-5">
-    <div class="row g-4">
-        <div class="col-md-4">
-            <div class="card shadow-lg hover-card h-100">
-                <div class="card-body text-center p-4">
-                    <div class="icon-circle mx-auto mb-3 bg-primary">
-                        <i class="bi bi-train-front fs-1 text-white"></i>
+<div class="container mt-4">
+    <!-- Integration Workflows Section -->
+    <div class="section-header mb-3">
+        <h2 class="h4 text-primary"><i class="bi bi-diagram-3"></i> Integration Workflows</h2>
+        <p class="text-muted small mb-0">End-to-end integration use cases with source systems, processing, and destinations</p>
+    </div>
+    
+    <div class="row g-4 mb-5">
+        <!-- UC1: RNE Operational Plans Export -->
+        <div class="col-lg-4">
+            <div class="card shadow-lg hover-card h-100 workflow-card uc1-card">
+                <div class="card-header uc1-header text-white py-2">
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-white text-primary me-2">UC1</span>
+                        <h5 class="mb-0 fs-6">RNE Operational Plans Export</h5>
                     </div>
-                    <h3 class="card-title">OpsAPI</h3>
-                    <p class="card-text text-muted">Train operational plans with service codes, pathways, and travel dates for RNE export integration.</p>
-                    <a href="/OpsApi" class="btn btn-primary btn-lg mt-3">
-                        <i class="bi bi-box-arrow-right"></i> View Data
-                    </a>
-                    <div class="mt-3">
-                        <span class="badge bg-info" id="opsapi-count">Loading...</span>
+                </div>
+                <div class="card-body p-3">
+                    <div class="workflow-flow mb-3">
+                        <div class="flow-step">
+                            <div class="flow-icon uc1-bg">
+                                <i class="bi bi-train-front text-white"></i>
+                            </div>
+                            <span class="flow-label">OpsAPI</span>
+                        </div>
+                        <div class="flow-arrow"><i class="bi bi-arrow-right"></i></div>
+                        <div class="flow-step">
+                            <div class="flow-icon bg-secondary">
+                                <i class="bi bi-gear text-white"></i>
+                            </div>
+                            <span class="flow-label">Logic App</span>
+                        </div>
+                        <div class="flow-arrow"><i class="bi bi-arrow-right"></i></div>
+                        <div class="flow-step">
+                            <div class="flow-icon uc1-bg">
+                                <i class="bi bi-cloud-upload text-white"></i>
+                            </div>
+                            <span class="flow-label">SFTP/Blob</span>
+                        </div>
                     </div>
+                    <p class="card-text small text-muted mb-3">
+                        Exports train operational plans to Rail Network Europe via scheduled batch jobs with automatic retry for failures.
+                    </p>
+                    <div class="workflow-details small mb-3">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <span class="text-muted"><i class="bi bi-clock"></i> Trigger:</span>
+                                <span class="fw-medium">Cron Schedule</span>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted"><i class="bi bi-file-code"></i> Format:</span>
+                                <span class="fw-medium">JSON → XML</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="/OpsApi" class="btn btn-sm uc1-btn flex-fill">
+                            <i class="bi bi-database"></i> View Data
+                        </a>
+                        <a href="/RneExport" class="btn btn-sm btn-outline-primary flex-fill">
+                            <i class="bi bi-play-circle"></i> Test Workflow
+                        </a>
+                    </div>
+                </div>
+                <div class="card-footer bg-light py-2 d-flex justify-content-between align-items-center">
+                    <span class="badge uc1-bg" id="opsapi-count">Loading...</span>
+                    <small class="text-muted">Daily + D+2 + Retry</small>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="card shadow-lg hover-card h-100">
-                <div class="card-body text-center p-4">
-                    <div class="icon-circle mx-auto mb-3 bg-success">
-                        <i class="bi bi-briefcase fs-1 text-white"></i>
+        <!-- UC2: Salesforce Negotiated Rates Export -->
+        <div class="col-lg-4">
+            <div class="card shadow-lg hover-card h-100 workflow-card uc2-card">
+                <div class="card-header uc2-header text-white py-2">
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-white text-success me-2">UC2</span>
+                        <h5 class="mb-0 fs-6">Salesforce Negotiated Rates</h5>
                     </div>
-                    <h3 class="card-title">Salesforce</h3>
-                    <p class="card-text text-muted">Negotiated rates data with account information, tariff codes, and distributor codes for CSV exports.</p>
-                    <a href="/Salesforce" class="btn btn-success btn-lg mt-3">
-                        <i class="bi bi-box-arrow-right"></i> View Data
-                    </a>
-                    <div class="mt-3">
-                        <span class="badge bg-info" id="salesforce-count">Loading...</span>
+                </div>
+                <div class="card-body p-3">
+                    <div class="workflow-flow mb-3">
+                        <div class="flow-step">
+                            <div class="flow-icon uc2-bg">
+                                <i class="bi bi-cloud-lightning text-white"></i>
+                            </div>
+                            <span class="flow-label">SF Events</span>
+                        </div>
+                        <div class="flow-arrow"><i class="bi bi-arrow-right"></i></div>
+                        <div class="flow-step">
+                            <div class="flow-icon bg-secondary">
+                                <i class="bi bi-gear text-white"></i>
+                            </div>
+                            <span class="flow-label">Logic App</span>
+                        </div>
+                        <div class="flow-arrow"><i class="bi bi-arrow-right"></i></div>
+                        <div class="flow-step">
+                            <div class="flow-icon uc2-bg">
+                                <i class="bi bi-filetype-csv text-white"></i>
+                            </div>
+                            <span class="flow-label">Blob CSV</span>
+                        </div>
                     </div>
+                    <p class="card-text small text-muted mb-3">
+                        Listens to Salesforce Platform Events, processes three extract types (IDL/S3, GDS Air, BeNe) in parallel.
+                    </p>
+                    <div class="workflow-details small mb-3">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <span class="text-muted"><i class="bi bi-lightning"></i> Trigger:</span>
+                                <span class="fw-medium">Platform Event</span>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted"><i class="bi bi-file-code"></i> Format:</span>
+                                <span class="fw-medium">JSON → CSV</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="/Salesforce" class="btn btn-sm uc2-btn flex-fill">
+                            <i class="bi bi-database"></i> View Data
+                        </a>
+                        <button class="btn btn-sm btn-outline-success flex-fill" onclick="triggerSalesforceEvent()">
+                            <i class="bi bi-play-circle"></i> Test Workflow
+                        </button>
+                    </div>
+                </div>
+                <div class="card-footer bg-light py-2 d-flex justify-content-between align-items-center">
+                    <span class="badge uc2-bg" id="salesforce-count">Loading...</span>
+                    <small class="text-muted">3 Extract Types</small>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="card shadow-lg hover-card h-100">
-                <div class="card-body text-center p-4">
-                    <div class="icon-circle mx-auto mb-3 bg-warning">
-                        <i class="bi bi-diagram-3 fs-1 text-white"></i>
+        <!-- UC3: Network Rail CIF Processing -->
+        <div class="col-lg-4">
+            <div class="card shadow-lg hover-card h-100 workflow-card uc3-card">
+                <div class="card-header uc3-header text-white py-2">
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-white text-warning me-2">UC3</span>
+                        <h5 class="mb-0 fs-6">Network Rail CIF Processing</h5>
                     </div>
-                    <h3 class="card-title">Network Rail</h3>
-                    <p class="card-text text-muted">CIF schedule files with train service information and passage points for infrastructure pathway events.</p>
-                    <a href="/NetworkRail" class="btn btn-warning btn-lg mt-3">
-                        <i class="bi bi-box-arrow-right"></i> View Data
-                    </a>
-                    <div class="mt-3">
-                        <span class="badge bg-info" id="networkrail-count">Loading...</span>
+                </div>
+                <div class="card-body p-3">
+                    <div class="workflow-flow mb-3">
+                        <div class="flow-step">
+                            <div class="flow-icon uc3-bg">
+                                <i class="bi bi-file-zip text-white"></i>
+                            </div>
+                            <span class="flow-label">NTROD</span>
+                        </div>
+                        <div class="flow-arrow"><i class="bi bi-arrow-right"></i></div>
+                        <div class="flow-step">
+                            <div class="flow-icon bg-secondary">
+                                <i class="bi bi-gear text-white"></i>
+                            </div>
+                            <span class="flow-label">Logic App</span>
+                        </div>
+                        <div class="flow-arrow"><i class="bi bi-arrow-right"></i></div>
+                        <div class="flow-step">
+                            <div class="flow-icon uc3-bg">
+                                <i class="bi bi-broadcast text-white"></i>
+                            </div>
+                            <span class="flow-label">Msg Store</span>
+                        </div>
+                    </div>
+                    <p class="card-text small text-muted mb-3">
+                        Downloads compressed CIF schedule files, decompresses, parses, and publishes events to message store.
+                    </p>
+                    <div class="workflow-details small mb-3">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <span class="text-muted"><i class="bi bi-clock"></i> Trigger:</span>
+                                <span class="fw-medium">Cron Schedule</span>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted"><i class="bi bi-file-code"></i> Format:</span>
+                                <span class="fw-medium">GZIP → Protobuf</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="/NetworkRail" class="btn btn-sm uc3-btn flex-fill">
+                            <i class="bi bi-database"></i> View Data
+                        </a>
+                        <button class="btn btn-sm btn-outline-warning flex-fill" onclick="triggerCifDownload()">
+                            <i class="bi bi-play-circle"></i> Test Workflow
+                        </button>
+                    </div>
+                </div>
+                <div class="card-footer bg-light py-2 d-flex justify-content-between align-items-center">
+                    <span class="badge uc3-bg" id="networkrail-count">Loading...</span>
+                    <small class="text-muted">Daily + Weekly</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mock Data Sources Section (Collapsible) -->
+    <div class="section-header mb-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="h4 text-secondary"><i class="bi bi-database"></i> Mock Data Sources</h2>
+                <p class="text-muted small mb-0">Simulated API endpoints providing test data for integration workflows</p>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#mockDataSection">
+                <i class="bi bi-chevron-down"></i> Toggle
+            </button>
+        </div>
+    </div>
+    
+    <div class="collapse show" id="mockDataSection">
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card shadow-sm hover-card h-100 border-start border-4 uc1-border">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="icon-circle-sm uc1-bg me-3">
+                                <i class="bi bi-train-front text-white"></i>
+                            </div>
+                            <div>
+                                <h5 class="card-title mb-0 fs-6">OpsAPI (GraphQL)</h5>
+                                <small class="text-muted">Used by: UC1</small>
+                            </div>
+                        </div>
+                        <p class="card-text small text-muted mb-2">Train operational plans with service codes, pathways, and travel dates.</p>
+                        <a href="/OpsApi" class="btn btn-sm btn-outline-primary w-100">
+                            <i class="bi bi-box-arrow-right"></i> View Data
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm hover-card h-100 border-start border-4 uc2-border">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="icon-circle-sm uc2-bg me-3">
+                                <i class="bi bi-briefcase text-white"></i>
+                            </div>
+                            <div>
+                                <h5 class="card-title mb-0 fs-6">Salesforce API</h5>
+                                <small class="text-muted">Used by: UC2</small>
+                            </div>
+                        </div>
+                        <p class="card-text small text-muted mb-2">Negotiated rates with account info, tariff codes, and distributor codes.</p>
+                        <a href="/Salesforce" class="btn btn-sm btn-outline-success w-100">
+                            <i class="bi bi-box-arrow-right"></i> View Data
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm hover-card h-100 border-start border-4 uc3-border">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="icon-circle-sm uc3-bg me-3">
+                                <i class="bi bi-diagram-3 text-white"></i>
+                            </div>
+                            <div>
+                                <h5 class="card-title mb-0 fs-6">Network Rail NTROD</h5>
+                                <small class="text-muted">Used by: UC3</small>
+                            </div>
+                        </div>
+                        <p class="card-text small text-muted mb-2">CIF schedule files with train service information and passage points.</p>
+                        <a href="/NetworkRail" class="btn btn-sm btn-outline-warning w-100">
+                            <i class="bi bi-box-arrow-right"></i> View Data
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card shadow-lg hover-card">
-                <div class="card-body text-center p-4">
-                    <div class="icon-circle mx-auto mb-3 bg-dark">
-                        <i class="bi bi-file-earmark-code fs-1 text-white"></i>
+    <!-- Developer Tools Section -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm hover-card h-100">
+                <div class="card-body p-3 text-center">
+                    <div class="icon-circle-sm bg-dark mx-auto mb-2">
+                        <i class="bi bi-file-earmark-code text-white"></i>
                     </div>
-                    <h3 class="card-title">API Documentation</h3>
-                    <p class="card-text text-muted">Interactive API documentation with Swagger UI. Explore and test all REST API endpoints for OpsAPI, Salesforce, and Network Rail.</p>
-                    <a href="/swagger" class="btn btn-dark btn-lg mt-3" target="_blank">
+                    <h5 class="card-title fs-6">API Documentation</h5>
+                    <p class="card-text small text-muted mb-2">Interactive Swagger UI for all REST endpoints.</p>
+                    <a href="/swagger" class="btn btn-sm btn-dark" target="_blank">
                         <i class="bi bi-code-square"></i> Open Swagger UI
                     </a>
                 </div>
             </div>
         </div>
-    </div>
-
-    <div class="row mt-5">
-        <div class="col-12">
-            <div class="card shadow-lg">
-                <div class="card-header bg-gradient text-white">
-                    <h4 class="mb-0"><i class="bi bi-info-circle"></i> About This Mock Server</h4>
-                </div>
-                <div class="card-body">
-                    <p>This mock server simulates three integration endpoints for the Transgrid platform, designed for Starline International train operations:</p>
-                    <ul>
-                        <li><strong>OpsAPI:</strong> Provides train operational plans for export to Rail Network Europe (RNE)</li>
-                        <li><strong>Salesforce:</strong> Manages negotiated rates with various extract types (IDL/S3, GDS Air, BeNe)</li>
-                        <li><strong>Network Rail:</strong> Processes CIF schedule files from Network Rail NTROD API</li>
-                    </ul>
-                    <p class="mb-0">All data is stored in memory and can be regenerated or reset at any time using the buttons in the navigation bar.</p>
+        <div class="col-md-6">
+            <div class="card shadow-sm hover-card h-100">
+                <div class="card-body p-3 text-center">
+                    <div class="icon-circle-sm bg-info mx-auto mb-2">
+                        <i class="bi bi-bug text-white"></i>
+                    </div>
+                    <h5 class="card-title fs-6">Azure Functions Debug</h5>
+                    <p class="card-text small text-muted mb-2">Test Azure Functions transformations directly.</p>
+                    <a href="/FunctionDebug" class="btn btn-sm btn-info text-white">
+                        <i class="bi bi-terminal"></i> Debug Console
+                    </a>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Architecture Overview -->
+    <div class="card shadow-lg mb-4">
+        <div class="card-header bg-gradient text-white py-2">
+            <h5 class="mb-0 fs-6"><i class="bi bi-diagram-2"></i> Architecture Overview</h5>
+        </div>
+        <div class="card-body p-3">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Use Case</th>
+                            <th>Source System</th>
+                            <th>Processing</th>
+                            <th>Transformation</th>
+                            <th>Destination</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="uc1-row">
+                            <td><span class="badge uc1-bg">UC1</span> RNE Export</td>
+                            <td><i class="bi bi-train-front"></i> OpsAPI (GraphQL)</td>
+                            <td><i class="bi bi-gear"></i> Logic App + Function</td>
+                            <td>JSON → XML (TAF-JSG)</td>
+                            <td><i class="bi bi-cloud-upload"></i> SFTP + Blob Storage</td>
+                        </tr>
+                        <tr class="uc2-row">
+                            <td><span class="badge uc2-bg">UC2</span> SF Rates</td>
+                            <td><i class="bi bi-cloud-lightning"></i> Salesforce Events</td>
+                            <td><i class="bi bi-gear"></i> Logic App + Function</td>
+                            <td>JSON → CSV (3 types)</td>
+                            <td><i class="bi bi-filetype-csv"></i> Azure Blob Storage</td>
+                        </tr>
+                        <tr class="uc3-row">
+                            <td><span class="badge uc3-bg">UC3</span> NR CIF</td>
+                            <td><i class="bi bi-file-zip"></i> NTROD API (GZIP)</td>
+                            <td><i class="bi bi-gear"></i> Logic App + Function</td>
+                            <td>GZIP → Protobuf</td>
+                            <td><i class="bi bi-broadcast"></i> Message Store (gRPC)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
+
+@section Styles {
+<style>
+    /* Use Case Color Scheme */
+    .uc1-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; }
+    .uc1-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; }
+    .uc1-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; }
+    .uc1-btn:hover { background: linear-gradient(135deg, #5a6fd6 0%, #6a4396 100%); color: white; transform: translateY(-2px); }
+    .uc1-border { border-color: #667eea !important; }
+    .uc1-row { border-left: 3px solid #667eea; }
+    
+    .uc2-bg { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important; }
+    .uc2-header { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important; }
+    .uc2-btn { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border: none; }
+    .uc2-btn:hover { background: linear-gradient(135deg, #0f8a7f 0%, #32d571 100%); color: white; transform: translateY(-2px); }
+    .uc2-border { border-color: #11998e !important; }
+    .uc2-row { border-left: 3px solid #11998e; }
+    
+    .uc3-bg { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important; }
+    .uc3-header { background: linear-gradient(135deg, #f5af19 0%, #f12711 100%) !important; }
+    .uc3-btn { background: linear-gradient(135deg, #f5af19 0%, #f12711 100%); color: white; border: none; }
+    .uc3-btn:hover { background: linear-gradient(135deg, #e0a016 0%, #dc1510 100%); color: white; transform: translateY(-2px); }
+    .uc3-border { border-color: #f5af19 !important; }
+    .uc3-row { border-left: 3px solid #f5af19; }
+
+    /* Workflow Flow Diagram */
+    .workflow-flow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        background: rgba(0,0,0,0.02);
+        border-radius: 8px;
+    }
+    
+    .flow-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .flow-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+    }
+    
+    .flow-label {
+        font-size: 0.65rem;
+        font-weight: 500;
+        color: #6c757d;
+    }
+    
+    .flow-arrow {
+        color: #adb5bd;
+        font-size: 0.8rem;
+    }
+
+    /* Smaller icon circles */
+    .icon-circle-sm {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+    }
+
+    /* Section headers */
+    .section-header {
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 0.5rem;
+    }
+
+    /* Workflow cards */
+    .workflow-card {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .workflow-card .card-header {
+        border-radius: 0;
+    }
+    
+    .workflow-card .card-footer {
+        border-radius: 0 0 12px 12px;
+    }
+
+    /* Table row hover with use case colors */
+    .uc1-row:hover { background-color: rgba(102, 126, 234, 0.1) !important; }
+    .uc2-row:hover { background-color: rgba(17, 153, 142, 0.1) !important; }
+    .uc3-row:hover { background-color: rgba(245, 175, 25, 0.1) !important; }
+</style>
+}
 
 @section Scripts {
 <script>
@@ -127,6 +486,16 @@
         } catch (error) {
             console.error('Error loading counts:', error);
         }
+    }
+    
+    function triggerSalesforceEvent() {
+        alert('Salesforce Platform Event simulation - This would trigger the sf-negotiated-rates workflow');
+        // TODO: Implement actual workflow trigger
+    }
+    
+    function triggerCifDownload() {
+        alert('Network Rail CIF download simulation - This would trigger the nr-cif-processing workflow');
+        // TODO: Implement actual workflow trigger
     }
     
     loadCounts();

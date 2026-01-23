@@ -203,6 +203,19 @@
             margin: 0;
             color: #636c76;
         }
+        
+        /* GitHub link bar */
+        .github-link-bar {
+            display: flex;
+            justify-content: flex-end;
+            padding: 0.5rem 0;
+        }
+        
+        .github-link-bar .btn {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
     </style>
 }
 
@@ -241,11 +254,22 @@
                 <i class="bi bi-cloud-arrow-up me-2"></i>UC02: Salesforce Rates
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="usecase03-tab" data-bs-toggle="tab" data-bs-target="#usecase03" 
+                    type="button" role="tab" aria-controls="usecase03" aria-selected="false">
+                <i class="bi bi-file-zip me-2"></i>UC03: Network Rail CIF
+            </button>
+        </li>
     </ul>
 
     <!-- Tab Content -->
     <div class="tab-content" id="docTabsContent">
         <div class="tab-pane fade show active" id="usecases" role="tabpanel" aria-labelledby="usecases-tab">
+            <div class="github-link-bar mb-3">
+                <a href="https://github.com/frkim/transgrid/tree/main/documents/Azure%20Integration%20Services%20Use%20Cases.md" target="_blank" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-github me-1"></i> View on GitHub
+                </a>
+            </div>
             <div class="markdown-body" id="usecases-content">
                 <div class="loading-spinner">
                     <div class="spinner-border text-primary" role="status">
@@ -255,6 +279,11 @@
             </div>
         </div>
         <div class="tab-pane fade" id="details" role="tabpanel" aria-labelledby="details-tab">
+            <div class="github-link-bar mb-3">
+                <a href="https://github.com/frkim/transgrid/tree/main/documents/Use%20Case%20Details.md" target="_blank" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-github me-1"></i> View on GitHub
+                </a>
+            </div>
             <div class="markdown-body" id="details-content">
                 <div class="loading-spinner">
                     <div class="spinner-border text-primary" role="status">
@@ -264,6 +293,11 @@
             </div>
         </div>
         <div class="tab-pane fade" id="usecase01" role="tabpanel" aria-labelledby="usecase01-tab">
+            <div class="github-link-bar mb-3">
+                <a href="https://github.com/frkim/transgrid/tree/main/documents/UseCase_01_RNE_Ops.md" target="_blank" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-github me-1"></i> View on GitHub
+                </a>
+            </div>
             <div class="markdown-body" id="usecase01-content">
                 <div class="loading-spinner">
                     <div class="spinner-border text-primary" role="status">
@@ -273,7 +307,26 @@
             </div>
         </div>
         <div class="tab-pane fade" id="usecase02" role="tabpanel" aria-labelledby="usecase02-tab">
+            <div class="github-link-bar mb-3">
+                <a href="https://github.com/frkim/transgrid/tree/main/documents/UseCase_02_Salesforce_Rates.md" target="_blank" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-github me-1"></i> View on GitHub
+                </a>
+            </div>
             <div class="markdown-body" id="usecase02-content">
+                <div class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="usecase03" role="tabpanel" aria-labelledby="usecase03-tab">
+            <div class="github-link-bar mb-3">
+                <a href="https://github.com/frkim/transgrid/tree/main/documents/UseCase_03_NetworkRail_CIF.md" target="_blank" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-github me-1"></i> View on GitHub
+                </a>
+            </div>
+            <div class="markdown-body" id="usecase03-content">
                 <div class="loading-spinner">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Loading...</span>
@@ -311,6 +364,7 @@
         const useCaseDetailsMarkdown = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.UseCaseDetailsMarkdown));
         const useCase01Markdown = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.UseCase01Markdown));
         const useCase02Markdown = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.UseCase02Markdown));
+        const useCase03Markdown = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.UseCase03Markdown));
 
         // Render markdown on page load
         document.addEventListener('DOMContentLoaded', function() {
@@ -329,6 +383,10 @@
             // Render Use Case 02 tab
             const usecase02Content = document.getElementById('usecase02-content');
             usecase02Content.innerHTML = marked.parse(useCase02Markdown);
+
+            // Render Use Case 03 tab
+            const usecase03Content = document.getElementById('usecase03-content');
+            usecase03Content.innerHTML = marked.parse(useCase03Markdown);
             
             // Apply syntax highlighting to code blocks
             document.querySelectorAll('pre code').forEach((block) => {

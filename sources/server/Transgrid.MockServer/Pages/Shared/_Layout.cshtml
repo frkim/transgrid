@@ -1,5 +1,5 @@
 @{
-    ViewData["Title"] = ViewData["Title"] ?? "Transgrid Mock Server";
+    ViewData["Title"] = ViewData["Title"] ?? "TransGrid";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -16,7 +16,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-gradient sticky-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="/">
-                <i class="bi bi-grid-3x3-gap-fill"></i> Transgrid Mock Server
+                <i class="bi bi-grid-3x3-gap-fill"></i> TransGrid
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -28,25 +28,54 @@
                             <i class="bi bi-house-door"></i> Home
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/OpsApi">
-                            <i class="bi bi-train-front"></i> OpsAPI
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-diagram-3"></i> Workflows
                         </a>
+                        <ul class="dropdown-menu">
+                            <li><h6 class="dropdown-header">Integration Use Cases</h6></li>
+                            <li>
+                                <a class="dropdown-item" href="/RneExport">
+                                    <span class="badge uc1-nav-badge me-2">UC1</span> RNE Export
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="/Salesforce">
+                                    <span class="badge uc2-nav-badge me-2">UC2</span> SF Negotiated Rates
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="/NetworkRail">
+                                    <span class="badge uc3-nav-badge me-2">UC3</span> Network Rail CIF
+                                </a>
+                            </li>
+                        </ul>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/Salesforce">
-                            <i class="bi bi-briefcase"></i> Salesforce
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-database"></i> Mock Data
                         </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/NetworkRail">
-                            <i class="bi bi-diagram-3"></i> Network Rail
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/RneExport">
-                            <i class="bi bi-cloud-upload"></i> RNE Export
-                        </a>
+                        <ul class="dropdown-menu">
+                            <li><h6 class="dropdown-header">Source Systems</h6></li>
+                            <li>
+                                <a class="dropdown-item" href="/OpsApi">
+                                    <i class="bi bi-train-front text-primary me-2"></i> OpsAPI
+                                    <small class="text-muted ms-1">(UC1)</small>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="/Salesforce">
+                                    <i class="bi bi-briefcase text-success me-2"></i> Salesforce
+                                    <small class="text-muted ms-1">(UC2)</small>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="/NetworkRail">
+                                    <i class="bi bi-diagram-3 text-warning me-2"></i> Network Rail
+                                    <small class="text-muted ms-1">(UC3)</small>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                 </ul>
                 <div class="d-flex gap-2 align-items-center">
@@ -115,7 +144,7 @@
 
     <footer class="footer mt-auto py-3 bg-light">
         <div class="container text-center">
-            <span class="text-muted">Transgrid Mock Server &copy; 2026 - Starline International</span>
+            <span class="text-muted">TransGrid &copy; 2026 - Starline International</span>
         </div>
     </footer>
 
