@@ -53,10 +53,17 @@
         <!-- Simulation Panel -->
         <div class="col-md-4">
             <div class="card">
-                <div class="card-header bg-dark text-white">
-                    <i class="bi bi-play-circle"></i> Export Simulation
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-play-circle"></i> Export Simulation</span>
+                    <button type="button" class="btn btn-sm btn-outline-light" id="loadDemoDataBtn" title="Load demo data for today and D+2">
+                        <i class="bi bi-database-fill-gear"></i> Load Demo Data
+                    </button>
                 </div>
                 <div class="card-body">
+                    <div id="demoDataAlert" class="alert alert-info alert-dismissible fade show d-none" role="alert">
+                        <i class="bi bi-info-circle"></i> <span id="demoDataMessage"></span>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
                     <form id="simulateForm">
                         <div class="mb-3">
                             <label for="travelDate" class="form-label">Travel Date</label>
@@ -389,6 +396,41 @@
     // Set default date to today
     document.getElementById('travelDate').valueAsDate = new Date();
     document.getElementById('httpTravelDate').valueAsDate = new Date();
+    
+    // Load Demo Data button handler
+    document.getElementById('loadDemoDataBtn').addEventListener('click', async function() {
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Loading...';
+        
+        try {
+            const response = await fetch(`${apiBase}/api/DataManagement/generate-test-data`, {
+                method: 'POST'
+            });
+            const result = await response.json();
+            
+            // Show success message
+            const alertDiv = document.getElementById('demoDataAlert');
+            const messageSpan = document.getElementById('demoDataMessage');
+            alertDiv.classList.remove('d-none', 'alert-danger');
+            alertDiv.classList.add('alert-info');
+            messageSpan.innerHTML = `<strong>Demo data loaded!</strong> ${result.summary.todayPlansMatchingFilters} trains for today, ${result.summary.d2PlansMatchingFilters} for D+2.`;
+            
+            // Refresh stats
+            loadStats();
+            loadHistory();
+        } catch (err) {
+            const alertDiv = document.getElementById('demoDataAlert');
+            const messageSpan = document.getElementById('demoDataMessage');
+            alertDiv.classList.remove('d-none', 'alert-info');
+            alertDiv.classList.add('alert-danger');
+            messageSpan.textContent = 'Failed to load demo data: ' + err.message;
+        }
+        
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    });
     
     // Toggle failure rate visibility
     document.getElementById('simulateFailures').addEventListener('change', function() {
