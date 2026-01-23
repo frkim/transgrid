@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.38.33.27573",
-      "templateHash": "17434325462266441457"
+      "templateHash": "5969508023831926396"
     }
   },
   "parameters": {
@@ -1405,6 +1405,9 @@
           "functionUrl": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'function-app-deployment'), '2025-04-01').outputs.functionEndpoint.value]"
           },
+          "functionBaseUrl": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'function-app-deployment'), '2025-04-01').outputs.functionBaseUrl.value]"
+          },
           "functionKey": {
             "value": ""
           },
@@ -1418,7 +1421,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "10052294745133575887"
+              "templateHash": "7642611040873862427"
             }
           },
           "parameters": {
@@ -1454,6 +1457,20 @@
               "defaultValue": "",
               "metadata": {
                 "description": "Container Registry name (leave empty for Docker Hub or MCR)"
+              }
+            },
+            "containerRegistryUsername": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Container Registry username for authentication"
+              }
+            },
+            "containerRegistryPassword": {
+              "type": "securestring",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Container Registry password for authentication"
               }
             },
             "containerImage": {
@@ -1498,6 +1515,13 @@
                 "description": "Function URL for the TransformTrainPlan function"
               }
             },
+            "functionBaseUrl": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Function Base URL (Azure Functions base endpoint without /api/...)"
+              }
+            },
             "functionKey": {
               "type": "securestring",
               "defaultValue": "",
@@ -1524,7 +1548,8 @@
             "containerAppName": "[format('ca-{0}-{1}', parameters('nameSuffix'), parameters('environment'))]",
             "functionKeySecret": "[if(not(empty(parameters('functionKey'))), createArray(createObject('name', 'function-key', 'value', parameters('functionKey'))), createArray())]",
             "serviceBusSecret": "[if(not(empty(parameters('serviceBusConnectionString'))), createArray(createObject('name', 'servicebus-connection', 'value', parameters('serviceBusConnectionString'))), createArray())]",
-            "allSecrets": "[concat(variables('functionKeySecret'), variables('serviceBusSecret'))]",
+            "registryPasswordSecret": "[if(not(empty(parameters('containerRegistryPassword'))), createArray(createObject('name', 'registry-password', 'value', parameters('containerRegistryPassword'))), createArray())]",
+            "allSecrets": "[concat(variables('functionKeySecret'), variables('serviceBusSecret'), variables('registryPasswordSecret'))]",
             "functionKeyEnv": "[if(not(empty(parameters('functionKey'))), createArray(createObject('name', 'FunctionDebug__FunctionKey', 'secretRef', 'function-key')), createArray(createObject('name', 'FunctionDebug__FunctionKey', 'value', '')))]",
             "serviceBusEnv": "[if(not(empty(parameters('serviceBusConnectionString'))), createArray(createObject('name', 'ServiceBus__ConnectionString', 'secretRef', 'servicebus-connection')), createArray(createObject('name', 'ServiceBus__ConnectionString', 'value', '')))]"
           },
@@ -1561,7 +1586,7 @@
                       "maxAge": 3600
                     }
                   },
-                  "registries": "[if(not(empty(parameters('containerRegistry'))), createArray(createObject('server', parameters('containerRegistry'))), createArray())]"
+                  "registries": "[if(not(empty(parameters('containerRegistry'))), createArray(createObject('server', parameters('containerRegistry'), 'username', parameters('containerRegistryUsername'), 'passwordSecretRef', 'registry-password')), createArray())]"
                 },
                 "template": {
                   "containers": [
@@ -1572,7 +1597,7 @@
                         "cpu": "[json(parameters('cpuCores'))]",
                         "memory": "[format('{0}Gi', parameters('memoryGb'))]"
                       },
-                      "env": "[concat(createArray(createObject('name', 'ASPNETCORE_ENVIRONMENT', 'value', if(equals(parameters('environment'), 'prod'), 'Production', 'Development')), createObject('name', 'ASPNETCORE_URLS', 'value', format('http://+:{0}', parameters('targetPort'))), createObject('name', 'FunctionDebug__FunctionUrl', 'value', parameters('functionUrl')), createObject('name', 'ServiceBus__QueueName', 'value', parameters('serviceBusQueueName'))), variables('functionKeyEnv'), variables('serviceBusEnv'), parameters('environmentVariables'))]"
+                      "env": "[concat(createArray(createObject('name', 'ASPNETCORE_ENVIRONMENT', 'value', if(equals(parameters('environment'), 'prod'), 'Production', 'Development')), createObject('name', 'ASPNETCORE_URLS', 'value', format('http://+:{0}', parameters('targetPort'))), createObject('name', 'FunctionDebug__FunctionUrl', 'value', parameters('functionUrl')), createObject('name', 'FunctionDebug__FunctionBaseUrl', 'value', parameters('functionBaseUrl')), createObject('name', 'ServiceBus__QueueName', 'value', parameters('serviceBusQueueName'))), variables('functionKeyEnv'), variables('serviceBusEnv'), parameters('environmentVariables'))]"
                     }
                   ],
                   "scale": {
@@ -1661,7 +1686,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "7084590290232440431"
+              "templateHash": "16057157143487001388"
             }
           },
           "parameters": {
@@ -1836,6 +1861,10 @@
               "type": "string",
               "value": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppFullName')), '2023-12-01', 'full').identity.principalId]"
             },
+            "functionBaseUrl": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.Web/sites', variables('functionAppFullName')), '2023-12-01').defaultHostName)]"
+            },
             "functionEndpoint": {
               "type": "string",
               "value": "[format('https://{0}/api', reference(resourceId('Microsoft.Web/sites', variables('functionAppFullName')), '2023-12-01').defaultHostName)]"
@@ -1926,7 +1955,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.38.33.27573",
-              "templateHash": "14805035961598261656"
+              "templateHash": "6495518483461838674"
             }
           },
           "parameters": {
@@ -2050,7 +2079,7 @@
               "type": "string",
               "defaultValue": "",
               "metadata": {
-                "description": "Operations API endpoint (GraphQL)"
+                "description": "Operations API base URL (without /graphql path - the path is appended in workflow definitions)"
               }
             },
             "serviceBusConnectionString": {
@@ -2310,6 +2339,10 @@
     "functionAppName": {
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Resources/deployments', 'function-app-deployment'), '2025-04-01').outputs.functionAppName.value]"
+    },
+    "functionBaseUrl": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'function-app-deployment'), '2025-04-01').outputs.functionBaseUrl.value]"
     },
     "functionEndpoint": {
       "type": "string",

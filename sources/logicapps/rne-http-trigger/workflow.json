@@ -129,7 +129,7 @@
         "type": "Http",
         "inputs": {
           "method": "POST",
-          "uri": "@appsetting('OPS_API_ENDPOINT')",
+          "uri": "@{appsetting('OPS_API_ENDPOINT')}/graphql",
           "headers": {
             "Content-Type": "application/json",
             "X-Correlation-Id": "@{variables('RunId')}"

@@ -39,7 +39,7 @@ logicapps/
 1. Update `local.settings.json` with your settings:
    - `WORKFLOWS_TENANT_ID`: Your Azure AD tenant ID
    - `WORKFLOWS_SUBSCRIPTION_ID`: Your subscription ID
-   - `OPS_API_ENDPOINT`: GraphQL API endpoint
+   - `OPS_API_ENDPOINT`: Base URL of the OPS API (without /graphql path, e.g., http://localhost:5240)
    - `FUNCTION_ENDPOINT`: Azure Function endpoint
 
 2. Start the Logic Apps runtime:

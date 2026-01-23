@@ -14,6 +14,7 @@ param sftpPassword = '' // Set via command line: --parameters sftpPassword='your
 param allowedSftpIpRanges = []
 
 // Operations API (Mock Server) endpoint
-// For local development, use the mock server URL
-// For production, use the actual Operations GraphQL API
-param opsApiEndpoint = 'http://localhost:5000/graphql'
+// For local development, use the mock server base URL (without /graphql path)
+// For production, use the actual Operations API base URL
+// Note: The /graphql path is appended by the Logic Apps workflow definitions
+param opsApiEndpoint = 'http://localhost:5000'

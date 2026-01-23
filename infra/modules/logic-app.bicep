@@ -57,7 +57,7 @@ param functionEndpoint string = ''
 @secure()
 param functionKey string = ''
 
-@description('Operations API endpoint (GraphQL)')
+@description('Operations API base URL (without /graphql path - the path is appended in workflow definitions)')
 param opsApiEndpoint string = ''
 
 @description('Service Bus connection string for Salesforce messages')

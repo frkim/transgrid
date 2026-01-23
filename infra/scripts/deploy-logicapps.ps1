@@ -148,7 +148,8 @@ if (-not $OpsApiEndpoint) {
     Write-Information "Detecting OPS API endpoint..."
     $containerApps = az containerapp list --resource-group $ResourceGroupName --query "[?contains(name, 'mock')].{name:name,fqdn:properties.configuration.ingress.fqdn}" -o json 2>$null | ConvertFrom-Json
     if ($containerApps -and $containerApps.Count -gt 0) {
-        $OpsApiEndpoint = "https://$($containerApps[0].fqdn)/graphql"
+        # Note: /graphql path is appended in the workflow definition, not here
+        $OpsApiEndpoint = "https://$($containerApps[0].fqdn)"
         Write-Information "Found OPS API endpoint: $OpsApiEndpoint"
     }
     else {

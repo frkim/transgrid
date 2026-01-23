@@ -102,7 +102,7 @@ public class IndexModel : PageModel
         // Read Logic App base URL from configuration
         LogicAppBaseUrl = _configuration["WorkflowDebug:LogicAppBaseUrl"] 
                           ?? _configuration["LOGIC_APP_URL"] 
-                          ?? "https://logic-transgrid-dev.azurewebsites.net";
+                          ?? "https://logic-transgrid-rne-export-dev.azurewebsites.net";
         
         LogicAppBaseUrl = LogicAppBaseUrl.TrimEnd('/');
     }

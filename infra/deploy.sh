@@ -20,7 +20,7 @@ set -e
 ENVIRONMENT="dev"
 SFTP_PASSWORD=""
 ALLOWED_IP_RANGES=""
-OPS_API_ENDPOINT="http://localhost:5000/graphql"
+OPS_API_ENDPOINT="http://localhost:5000"
 SKIP_SSH_KEY_GENERATION=false
 WHAT_IF=false
 
