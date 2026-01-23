@@ -1,0 +1,648 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Workflow Debug Console";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="gradient-text">
+        <i class="bi bi-diagram-3"></i> Workflow Debug Console
+    </h1>
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-secondary" id="workflow-status">
+            <i class="bi bi-circle"></i> Ready
+        </span>
+    </div>
+</div>
+
+<!-- Logic App Configuration Panel -->
+<div class="card shadow-lg mb-4">
+    <div class="card-header bg-gradient text-white">
+        <div class="row align-items-center">
+            <div class="col">
+                <i class="bi bi-gear"></i> Logic App Configuration
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row align-items-end g-3">
+            <div class="col-md-6">
+                <label for="logicAppBaseUrl" class="form-label fw-bold">Logic App Base URL</label>
+                <input type="text" class="form-control" id="logicAppBaseUrl" 
+                       value="@Model.LogicAppBaseUrl" 
+                       placeholder="Enter the Logic App Standard base URL">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle"></i> 
+                    Format: https://[logic-app-name].azurewebsites.net
+                </small>
+            </div>
+            <div class="col-md-6">
+                <label for="sasToken" class="form-label fw-bold">
+                    SAS Token <span class="text-muted fw-normal">(required for deployed workflows)</span>
+                </label>
+                <div class="input-group">
+                    <input type="password" class="form-control" id="sasToken" 
+                           placeholder="sv=2022-05-01&sig=...">
+                    <button class="btn btn-outline-secondary" type="button" onclick="toggleSasVisibility()" title="Toggle visibility">
+                        <i class="bi bi-eye" id="sasVisibilityIcon"></i>
+                    </button>
+                </div>
+                <small class="text-muted">
+                    <i class="bi bi-info-circle"></i> 
+                    Get SAS token from Azure Portal → Logic App → Workflows → [Workflow] → Workflow URL
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Workflow Selection Panel -->
+<div class="card shadow-lg mb-4">
+    <div class="card-header bg-primary text-white">
+        <div class="row align-items-center">
+            <div class="col">
+                <i class="bi bi-list-check"></i> Select Workflow
+            </div>
+            <div class="col-auto">
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-light" onclick="selectAllHttpWorkflows()">
+                        <i class="bi bi-check-all"></i> Select All HTTP
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-light" onclick="clearSelection()">
+                        <i class="bi bi-x-circle"></i> Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th width="40"></th>
+                        <th>Workflow</th>
+                        <th>Description</th>
+                        <th>Trigger Type</th>
+                        <th>Use Case</th>
+                        <th width="120">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var workflow in Model.Workflows)
+                    {
+                        var badgeClass = workflow.UseCase switch
+                        {
+                            "UC1" => "uc1-nav-badge",
+                            "UC2" => "uc2-nav-badge",
+                            "UC3" => "uc3-nav-badge",
+                            _ => "bg-secondary"
+                        };
+                        var triggerIcon = workflow.TriggerType switch
+                        {
+                            "HTTP Request" => "bi-globe text-success",
+                            "Recurrence" => "bi-clock text-info",
+                            "Event Hub" => "bi-broadcast-pin text-warning",
+                            _ => "bi-play text-secondary"
+                        };
+                        <tr id="row-@workflow.Id" class="@(workflow.HasHttpTrigger ? "" : "table-light")">
+                            <td class="text-center">
+                                <input type="checkbox" class="form-check-input workflow-checkbox" 
+                                       id="check-@workflow.Id" 
+                                       data-workflow-id="@workflow.Id"
+                                       data-has-http="@workflow.HasHttpTrigger.ToString().ToLower()"
+                                       @(workflow.HasHttpTrigger ? "" : "disabled")
+                                       onchange="onWorkflowSelectionChange()">
+                            </td>
+                            <td>
+                                <strong>@workflow.Name</strong>
+                                <br>
+                                <code class="text-muted small">@workflow.Id</code>
+                            </td>
+                            <td>
+                                <small>@workflow.Description</small>
+                            </td>
+                            <td>
+                                <i class="bi @triggerIcon me-1"></i>
+                                @workflow.TriggerType
+                                @if (!workflow.HasHttpTrigger)
+                                {
+                                    <br><small class="text-muted">(No HTTP trigger)</small>
+                                }
+                            </td>
+                            <td>
+                                <span class="badge @badgeClass">@workflow.UseCase</span>
+                            </td>
+                            <td>
+                                @if (workflow.HasHttpTrigger)
+                                {
+                                    <button type="button" class="btn btn-sm btn-primary" 
+                                            onclick="triggerSingleWorkflow('@workflow.Id')" 
+                                            title="Execute workflow">
+                                        <i class="bi bi-play-fill"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                            onclick="showPayloadEditor('@workflow.Id')" 
+                                            title="Edit payload">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled 
+                                            title="This workflow requires a scheduled or event trigger">
+                                        <i class="bi bi-clock"></i>
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer bg-light">
+        <div class="d-flex justify-content-between align-items-center">
+            <small class="text-muted">
+                <i class="bi bi-info-circle"></i> 
+                Only workflows with HTTP triggers can be executed from this console. 
+                Recurrence and Event Hub workflows run automatically based on their schedule/events.
+            </small>
+            <div class="btn-group">
+                <button type="button" class="btn btn-success" id="runSelectedBtn" onclick="runSelectedWorkflows()" disabled>
+                    <i class="bi bi-play-fill"></i> Run Selected (<span id="selectedCount">0</span>)
+                </button>
+                <button type="button" class="btn btn-outline-success" onclick="runAllHttpWorkflows()">
+                    <i class="bi bi-collection-play"></i> Run All HTTP Workflows
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payload Editor Modal -->
+<div class="modal fade" id="payloadModal" tabindex="-1" aria-labelledby="payloadModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient text-white">
+                <h5 class="modal-title" id="payloadModalLabel">
+                    <i class="bi bi-braces"></i> Edit Workflow Payload
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editingWorkflowId">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label fw-bold mb-0">JSON Payload</label>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatPayloadJson()">
+                                <i class="bi bi-code-slash"></i> Format
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="loadDefaultPayload()">
+                                <i class="bi bi-arrow-counterclockwise"></i> Reset
+                            </button>
+                        </div>
+                    </div>
+                    <div id="payloadEditorContainer" style="height: 300px; border: 1px solid #dee2e6;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveAndRunWorkflow()">
+                    <i class="bi bi-play-fill"></i> Save & Run
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Execution Results Panel -->
+<div class="card shadow-lg mb-4" id="resultsPanel" style="display: none;">
+    <div class="card-header bg-gradient text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-terminal"></i> Execution Results</span>
+        <button type="button" class="btn btn-sm btn-light" onclick="clearResults()">
+            <i class="bi bi-x-circle"></i> Clear
+        </button>
+    </div>
+    <div class="card-body p-0" id="resultsContainer">
+        <!-- Results will be injected here -->
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loading-content">
+        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-3 text-primary fw-bold" id="loadingMessage">Executing Workflow...</p>
+    </div>
+</div>
+
+@section Styles {
+<style>
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.9);
+        z-index: 9999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .loading-content {
+        text-align: center;
+    }
+    
+    .result-card {
+        border-left: 4px solid;
+        margin-bottom: 0;
+    }
+    
+    .result-card.success {
+        border-left-color: #198754;
+    }
+    
+    .result-card.error {
+        border-left-color: #dc3545;
+    }
+    
+    .result-header {
+        cursor: pointer;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .result-header:hover {
+        background: #e9ecef;
+    }
+    
+    .result-body {
+        padding: 1rem;
+        background: #fff;
+    }
+    
+    .result-output {
+        max-height: 400px;
+        overflow: auto;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 1rem;
+        border-radius: 4px;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+    }
+    
+    .CodeMirror {
+        height: 100% !important;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 13px;
+    }
+    
+    tr.table-light td {
+        opacity: 0.7;
+    }
+    
+    .workflow-checkbox:disabled {
+        cursor: not-allowed;
+    }
+</style>
+}
+
+@section Scripts {
+<!-- CodeMirror for JSON editing -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+
+<script>
+    // Workflow payloads storage
+    const workflowPayloads = {
+        @foreach (var workflow in Model.Workflows.Where(w => w.HasHttpTrigger))
+        {
+            <text>
+        '@workflow.Id': @Html.Raw(workflow.SamplePayload ?? "null"),
+            </text>
+        }
+    };
+    
+    // Default payloads (for reset)
+    const defaultPayloads = JSON.parse(JSON.stringify(workflowPayloads));
+    
+    let payloadEditor = null;
+    let payloadModal = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        payloadModal = new bootstrap.Modal(document.getElementById('payloadModal'));
+    });
+
+    function toggleSasVisibility() {
+        const sasInput = document.getElementById('sasToken');
+        const icon = document.getElementById('sasVisibilityIcon');
+        if (sasInput.type === 'password') {
+            sasInput.type = 'text';
+            icon.className = 'bi bi-eye-slash';
+        } else {
+            sasInput.type = 'password';
+            icon.className = 'bi bi-eye';
+        }
+    }
+
+    function onWorkflowSelectionChange() {
+        const checkboxes = document.querySelectorAll('.workflow-checkbox:checked');
+        const count = checkboxes.length;
+        document.getElementById('selectedCount').textContent = count;
+        document.getElementById('runSelectedBtn').disabled = count === 0;
+    }
+
+    function selectAllHttpWorkflows() {
+        document.querySelectorAll('.workflow-checkbox[data-has-http="true"]').forEach(cb => {
+            cb.checked = true;
+        });
+        onWorkflowSelectionChange();
+    }
+
+    function clearSelection() {
+        document.querySelectorAll('.workflow-checkbox').forEach(cb => {
+            cb.checked = false;
+        });
+        onWorkflowSelectionChange();
+    }
+
+    function showPayloadEditor(workflowId) {
+        document.getElementById('editingWorkflowId').value = workflowId;
+        document.getElementById('payloadModalLabel').innerHTML = 
+            `<i class="bi bi-braces"></i> Edit Payload: <code>${workflowId}</code>`;
+        
+        payloadModal.show();
+        
+        // Initialize CodeMirror after modal is shown
+        setTimeout(() => {
+            const container = document.getElementById('payloadEditorContainer');
+            container.innerHTML = '';
+            
+            payloadEditor = CodeMirror(container, {
+                mode: 'application/json',
+                theme: 'dracula',
+                lineNumbers: true,
+                matchBrackets: true,
+                autoCloseBrackets: true,
+                tabSize: 2,
+                value: JSON.stringify(workflowPayloads[workflowId] || {}, null, 2)
+            });
+        }, 200);
+    }
+
+    function formatPayloadJson() {
+        if (!payloadEditor) return;
+        try {
+            const content = payloadEditor.getValue();
+            const parsed = JSON.parse(content);
+            payloadEditor.setValue(JSON.stringify(parsed, null, 2));
+        } catch (error) {
+            showNotification('error', 'Invalid JSON: ' + error.message);
+        }
+    }
+
+    function loadDefaultPayload() {
+        if (!payloadEditor) return;
+        const workflowId = document.getElementById('editingWorkflowId').value;
+        payloadEditor.setValue(JSON.stringify(defaultPayloads[workflowId] || {}, null, 2));
+    }
+
+    function saveAndRunWorkflow() {
+        if (!payloadEditor) return;
+        
+        const workflowId = document.getElementById('editingWorkflowId').value;
+        try {
+            const payload = JSON.parse(payloadEditor.getValue());
+            workflowPayloads[workflowId] = payload;
+            payloadModal.hide();
+            triggerSingleWorkflow(workflowId);
+        } catch (error) {
+            showNotification('error', 'Invalid JSON: ' + error.message);
+        }
+    }
+
+    async function triggerSingleWorkflow(workflowId) {
+        await executeWorkflows([workflowId]);
+    }
+
+    async function runSelectedWorkflows() {
+        const selectedWorkflows = Array.from(
+            document.querySelectorAll('.workflow-checkbox:checked')
+        ).map(cb => cb.dataset.workflowId);
+        
+        if (selectedWorkflows.length === 0) {
+            showNotification('warning', 'No workflows selected');
+            return;
+        }
+        
+        await executeWorkflows(selectedWorkflows);
+    }
+
+    async function runAllHttpWorkflows() {
+        const httpWorkflows = Array.from(
+            document.querySelectorAll('.workflow-checkbox[data-has-http="true"]')
+        ).map(cb => cb.dataset.workflowId);
+        
+        await executeWorkflows(httpWorkflows);
+    }
+
+    async function executeWorkflows(workflowIds) {
+        const baseUrl = document.getElementById('logicAppBaseUrl').value.trim();
+        const sasToken = document.getElementById('sasToken').value.trim();
+        
+        if (!baseUrl) {
+            showNotification('error', 'Please enter the Logic App base URL');
+            return;
+        }
+
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        document.getElementById('resultsPanel').style.display = 'block';
+        updateStatus('running');
+        
+        const resultsContainer = document.getElementById('resultsContainer');
+        
+        for (let i = 0; i < workflowIds.length; i++) {
+            const workflowId = workflowIds[i];
+            document.getElementById('loadingMessage').textContent = 
+                `Executing ${workflowId} (${i + 1}/${workflowIds.length})...`;
+            
+            // Add placeholder for this result
+            const resultId = `result-${workflowId}-${Date.now()}`;
+            resultsContainer.insertAdjacentHTML('afterbegin', `
+                <div id="${resultId}" class="result-card">
+                    <div class="result-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-hourglass-split text-primary"></i>
+                            <strong class="ms-2">${workflowId}</strong>
+                            <span class="badge bg-primary ms-2">Running...</span>
+                        </div>
+                        <small class="text-muted">${new Date().toLocaleTimeString()}</small>
+                    </div>
+                </div>
+            `);
+
+            try {
+                const payload = workflowPayloads[workflowId] || {};
+                
+                const response = await fetch('/api/WorkflowDebug/trigger', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        workflowName: workflowId,
+                        logicAppBaseUrl: baseUrl,
+                        sasToken: sasToken,
+                        payload: JSON.stringify(payload)
+                    })
+                });
+
+                const result = await response.json();
+                updateResultCard(resultId, workflowId, result);
+                
+            } catch (error) {
+                updateResultCard(resultId, workflowId, {
+                    success: false,
+                    error: `Network error: ${error.message}`
+                });
+            }
+        }
+
+        document.getElementById('loadingOverlay').style.display = 'none';
+        
+        // Update final status
+        const successCount = document.querySelectorAll('.result-card.success').length;
+        const errorCount = document.querySelectorAll('.result-card.error').length;
+        
+        if (errorCount === 0) {
+            updateStatus('success');
+            showNotification('success', `All ${successCount} workflow(s) executed successfully`);
+        } else {
+            updateStatus('error');
+            showNotification('warning', `${successCount} succeeded, ${errorCount} failed`);
+        }
+    }
+
+    function updateResultCard(resultId, workflowId, result) {
+        const card = document.getElementById(resultId);
+        if (!card) return;
+        
+        const isSuccess = result.success;
+        card.className = `result-card ${isSuccess ? 'success' : 'error'}`;
+        
+        const statusBadge = isSuccess 
+            ? '<span class="badge bg-success">Success</span>'
+            : '<span class="badge bg-danger">Failed</span>';
+        
+        const icon = isSuccess ? 'bi-check-circle text-success' : 'bi-x-circle text-danger';
+        
+        const executionTime = result.executionTimeMs 
+            ? `<span class="badge bg-secondary"><i class="bi bi-clock"></i> ${(result.executionTimeMs / 1000).toFixed(2)}s</span>` 
+            : '';
+        
+        const correlationId = result.correlationId 
+            ? `<small class="text-muted">Correlation: ${result.correlationId}</small>` 
+            : '';
+        
+        let outputHtml = '';
+        if (isSuccess && result.output) {
+            outputHtml = `
+                <div class="result-body collapse" id="body-${resultId}">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Response Output</strong>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                onclick="copyToClipboard(\`${escapeHtml(result.output)}\`)">
+                            <i class="bi bi-clipboard"></i> Copy
+                        </button>
+                    </div>
+                    <div class="result-output">${escapeHtml(result.output)}</div>
+                </div>
+            `;
+        } else if (!isSuccess) {
+            const errorDetails = result.stackTrace 
+                ? `<pre class="result-output mt-2">${escapeHtml(result.stackTrace)}</pre>` 
+                : '';
+            outputHtml = `
+                <div class="result-body collapse show" id="body-${resultId}">
+                    <div class="alert alert-danger mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> ${escapeHtml(result.error || 'Unknown error')}
+                    </div>
+                    ${errorDetails}
+                </div>
+            `;
+        }
+        
+        card.innerHTML = `
+            <div class="result-header d-flex justify-content-between align-items-center" 
+                 data-bs-toggle="collapse" data-bs-target="#body-${resultId}">
+                <div>
+                    <i class="bi ${icon}"></i>
+                    <strong class="ms-2">${workflowId}</strong>
+                    ${statusBadge}
+                    ${executionTime}
+                </div>
+                <div class="text-end">
+                    ${correlationId}
+                    <br>
+                    <small class="text-muted">${new Date().toLocaleTimeString()}</small>
+                </div>
+            </div>
+            ${outputHtml}
+        `;
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            showNotification('success', 'Copied to clipboard');
+        }).catch(err => {
+            showNotification('error', 'Failed to copy: ' + err.message);
+        });
+    }
+
+    function clearResults() {
+        document.getElementById('resultsContainer').innerHTML = '';
+        document.getElementById('resultsPanel').style.display = 'none';
+        updateStatus('ready');
+    }
+
+    function updateStatus(status) {
+        const statusBadge = document.getElementById('workflow-status');
+        switch (status) {
+            case 'ready':
+                statusBadge.className = 'badge bg-secondary';
+                statusBadge.innerHTML = '<i class="bi bi-circle"></i> Ready';
+                break;
+            case 'running':
+                statusBadge.className = 'badge bg-primary';
+                statusBadge.innerHTML = '<i class="bi bi-hourglass-split"></i> Running...';
+                break;
+            case 'success':
+                statusBadge.className = 'badge bg-success';
+                statusBadge.innerHTML = '<i class="bi bi-check-circle"></i> Completed';
+                break;
+            case 'error':
+                statusBadge.className = 'badge bg-danger';
+                statusBadge.innerHTML = '<i class="bi bi-x-circle"></i> Errors';
+                break;
+        }
+    }
+</script>
+}
