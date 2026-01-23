@@ -11,18 +11,39 @@ public class IndexModel : PageModel
         _configuration = configuration;
     }
 
-    public string FunctionUrl { get; private set; } = string.Empty;
+    public string FunctionBaseUrl { get; private set; } = string.Empty;
     public string FunctionKey { get; private set; } = string.Empty;
+    
+    // Function endpoints
+    public string TransformTrainPlanUrl { get; private set; } = string.Empty;
+    public string TransformNegotiatedRatesUrl { get; private set; } = string.Empty;
+    public string ProcessCifOnDemandUrl { get; private set; } = string.Empty;
+    public string TransformCifScheduleUrl { get; private set; } = string.Empty;
+    
+    // GitHub source links
+    public const string GitHubRepoBase = "https://github.com/frkim/transgrid/tree/main/sources/functions/Transgrid.Functions/Functions";
+    public const string TransformTrainPlanSource = $"{GitHubRepoBase}/TransformTrainPlan.cs";
+    public const string TransformNegotiatedRatesSource = $"{GitHubRepoBase}/TransformNegotiatedRates.cs";
+    public const string ProcessCifFileSource = $"{GitHubRepoBase}/ProcessCifFile.cs";
 
     public void OnGet()
     {
         // Read from configuration (environment variables take precedence over appsettings)
-        FunctionUrl = _configuration["FunctionDebug:FunctionUrl"] 
+        FunctionBaseUrl = _configuration["FunctionDebug:FunctionBaseUrl"] 
                       ?? _configuration["FUNCTION_URL"] 
-                      ?? "https://func-transgrid-transform-dev.azurewebsites.net/api/TransformTrainPlan";
+                      ?? "https://func-transgrid-transform-dev.azurewebsites.net";
+        
+        // Remove trailing slash if present
+        FunctionBaseUrl = FunctionBaseUrl.TrimEnd('/');
         
         FunctionKey = _configuration["FunctionDebug:FunctionKey"] 
                       ?? _configuration["FUNCTION_KEY"] 
                       ?? string.Empty;
+        
+        // Build function URLs
+        TransformTrainPlanUrl = $"{FunctionBaseUrl}/api/TransformTrainPlan";
+        TransformNegotiatedRatesUrl = $"{FunctionBaseUrl}/api/TransformNegotiatedRates";
+        ProcessCifOnDemandUrl = $"{FunctionBaseUrl}/api/ProcessCifOnDemand";
+        TransformCifScheduleUrl = $"{FunctionBaseUrl}/api/TransformCifSchedule";
     }
 }

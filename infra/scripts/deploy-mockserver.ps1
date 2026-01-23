@@ -182,6 +182,18 @@ $existingApp = az containerapp show `
 
 if ($existingApp) {
     Write-Information "   Updating existing Container App: $ContainerAppName"
+    
+    # Ensure registry credentials are set (fixes UNAUTHORIZED errors when pulling images)
+    Write-Information "   Setting registry credentials..."
+    az containerapp registry set `
+        --name $ContainerAppName `
+        --resource-group $ResourceGroupName `
+        --server $RegistryServer `
+        --username $acrUsername `
+        --password $acrPassword `
+        --output none 2>$null
+    
+    # Update the container image
     az containerapp update `
         --name $ContainerAppName `
         --resource-group $ResourceGroupName `
@@ -243,14 +255,19 @@ if (-not $FunctionUrl) {
 }
 
 # Auto-detect Function Key if not provided
+# Use the host key (default) which works for all functions in the app
 if (-not $FunctionKey -and $FunctionAppName) {
-    Write-Information "   Detecting Function key..."
-    $FunctionKey = az functionapp function keys list --resource-group $ResourceGroupName --name $FunctionAppName --function-name TransformTrainPlan --query "default" -o tsv 2>$null
+    Write-Information "   Detecting Function App host key..."
+    $FunctionKey = az functionapp keys list --resource-group $ResourceGroupName --name $FunctionAppName --query "functionKeys.default" -o tsv 2>$null
+    if (-not $FunctionKey) {
+        # Fallback to master key if default is not available
+        $FunctionKey = az functionapp keys list --resource-group $ResourceGroupName --name $FunctionAppName --query "masterKey" -o tsv 2>$null
+    }
     if ($FunctionKey) {
-        Write-Information "   ✅ Found Function key"
+        Write-Information "   ✅ Found Function App host key (works for all functions)"
     }
     else {
-        Write-Warning "   No Function key found. You may need to configure it manually."
+        Write-Warning "   No Function host key found. You may need to configure it manually."
         $FunctionKey = ""
     }
 }
@@ -273,8 +290,14 @@ if (-not $LogicAppHttpTriggerUrl) {
     }
 }
 
+# Calculate Function Base URL for AzureFunctionEndpoint (strip /api/... from the full URL)
+$FunctionBaseUrl = $FunctionUrl -replace '/api/.*$', ''
+Write-Information "   Function Base URL: $FunctionBaseUrl"
+
 $envVars = @(
     "FunctionDebug__FunctionUrl=$FunctionUrl",
+    "FunctionDebug__FunctionBaseUrl=$FunctionBaseUrl",
+    "AzureFunctionEndpoint=$FunctionBaseUrl",
     "LogicApp__HttpTriggerUrl=$LogicAppHttpTriggerUrl"
 )
 
@@ -291,6 +314,21 @@ if ($FunctionKey) {
         --resource-group $ResourceGroupName `
         --set-env-vars $envVars "FunctionDebug__FunctionKey=secretref:function-key" `
         --output none
+    
+    # Restart the active revision to apply secret changes immediately
+    Write-Information "   Restarting container to apply secret changes..."
+    $activeRevision = az containerapp revision list `
+        --name $ContainerAppName `
+        --resource-group $ResourceGroupName `
+        --query "[?properties.trafficWeight > \`\`0\`\`].name" -o tsv
+    
+    if ($activeRevision) {
+        az containerapp revision restart `
+            --name $ContainerAppName `
+            --resource-group $ResourceGroupName `
+            --revision $activeRevision `
+            --output none 2>$null
+    }
 } else {
     az containerapp update `
         --name $ContainerAppName `

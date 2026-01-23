@@ -1,12 +1,12 @@
 @page
 @model IndexModel
 @{
-    ViewData["Title"] = "Debug TransformTrainPlan Function";
+    ViewData["Title"] = "Azure Functions Debug Console";
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="gradient-text">
-        <i class="bi bi-bug"></i> Debug TransformTrainPlan Function
+        <i class="bi bi-bug"></i> Azure Functions Debug Console
     </h1>
     <div class="d-flex align-items-center gap-2">
         <span class="badge bg-secondary" id="function-status">
@@ -15,7 +15,7 @@
     </div>
 </div>
 
-<!-- Function URL Configuration -->
+<!-- Function Configuration Panel -->
 <div class="card shadow-lg mb-4">
     <div class="card-header bg-gradient text-white">
         <div class="row align-items-center">
@@ -27,12 +27,12 @@
     <div class="card-body">
         <div class="row align-items-end g-3">
             <div class="col-md-6">
-                <label for="functionUrl" class="form-label fw-bold">Function URL</label>
-                <input type="text" class="form-control" id="functionUrl" 
-                       value="@Model.FunctionUrl" 
-                       placeholder="Enter the TransformTrainPlan function URL">
+                <label for="functionBaseUrl" class="form-label fw-bold">Function App Base URL</label>
+                <input type="text" class="form-control" id="functionBaseUrl" 
+                       value="@Model.FunctionBaseUrl" 
+                       placeholder="Enter the Function App base URL">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
                 <label for="functionKey" class="form-label fw-bold">
                     Function Key <span class="text-muted fw-normal">(required for deployed functions)</span>
                 </label>
@@ -45,81 +45,340 @@
                     </button>
                 </div>
             </div>
-            <div class="col-md-2">
-                <button type="button" class="btn btn-primary btn-lg w-100" onclick="runFunction()">
-                    <i class="bi bi-play-fill"></i> Run
-                </button>
-            </div>
         </div>
         <div class="row mt-2">
             <div class="col-12">
                 <small class="text-muted">
                     <i class="bi bi-info-circle"></i> 
-                    Get the function key from Azure Portal → Function App → Functions → TransformTrainPlan → Function Keys
+                    Get the function key from Azure Portal → Function App → Functions → [Function Name] → Function Keys
                 </small>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Main Content - Two Columns -->
-<div class="row g-4">
-    <!-- Left Column - Input (JSON) -->
-    <div class="col-lg-6">
-        <div class="card shadow-lg h-100 input-card">
-            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-braces"></i> Input (JSON)</span>
-                <div class="btn-group">
-                    <button type="button" class="btn btn-sm btn-light" onclick="formatJson()" title="Format JSON">
-                        <i class="bi bi-code-slash"></i> Format
-                    </button>
-                    <button type="button" class="btn btn-sm btn-light" onclick="loadSampleData()" title="Load Sample Data">
-                        <i class="bi bi-file-earmark-code"></i> Sample
-                    </button>
-                    <button type="button" class="btn btn-sm btn-light" onclick="clearInput()" title="Clear">
-                        <i class="bi bi-x-circle"></i> Clear
-                    </button>
+<!-- Use Case Tabs -->
+<ul class="nav nav-tabs nav-justified mb-0" id="useCaseTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="uc1-tab" data-bs-toggle="tab" data-bs-target="#uc1" type="button" role="tab" aria-controls="uc1" aria-selected="true">
+            <i class="bi bi-train-front"></i> Use Case 1: RNE Train Plan
+            <span class="badge bg-info ms-2">TransformTrainPlan</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="uc2-tab" data-bs-toggle="tab" data-bs-target="#uc2" type="button" role="tab" aria-controls="uc2" aria-selected="false">
+            <i class="bi bi-currency-dollar"></i> Use Case 2: Salesforce Rates
+            <span class="badge bg-warning text-dark ms-2">TransformNegotiatedRates</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="uc3-tab" data-bs-toggle="tab" data-bs-target="#uc3" type="button" role="tab" aria-controls="uc3" aria-selected="false">
+            <i class="bi bi-file-earmark-text"></i> Use Case 3: Network Rail CIF
+            <span class="badge bg-success ms-2">ProcessCifFile</span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content border border-top-0 rounded-bottom shadow-lg" id="useCaseTabsContent">
+    <!-- Use Case 1: RNE Train Plan -->
+    <div class="tab-pane fade show active p-4" id="uc1" role="tabpanel" aria-labelledby="uc1-tab">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h4 class="mb-1"><i class="bi bi-train-front text-info"></i> TransformTrainPlan</h4>
+                <p class="text-muted mb-0">Transforms train plan JSON to TAF-JSG XML format for RNE exports</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="@IndexModel.TransformTrainPlanSource" target="_blank" class="btn btn-outline-dark btn-sm">
+                    <i class="bi bi-github"></i> View Source
+                </a>
+                <button type="button" class="btn btn-primary" onclick="runFunction('uc1')">
+                    <i class="bi bi-play-fill"></i> Run Function
+                </button>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <!-- Input -->
+            <div class="col-lg-6">
+                <div class="card h-100 input-card">
+                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-braces"></i> Input (JSON)</span>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-light" onclick="formatJson('uc1')" title="Format JSON">
+                                <i class="bi bi-code-slash"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-light" onclick="loadSampleData('uc1')" title="Load Sample">
+                                <i class="bi bi-file-earmark-code"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-light" onclick="clearEditor('uc1')" title="Clear">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="editor-container">
+                            <div id="uc1-input" class="code-editor"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="card-body p-0">
-                <div class="editor-container">
-                    <div id="jsonEditor" class="code-editor"></div>
+            <!-- Output -->
+            <div class="col-lg-6">
+                <div class="card h-100 output-card" id="uc1-output-card">
+                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-file-earmark-code"></i> Output (XML)</span>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-light" onclick="copyOutput('uc1')" title="Copy">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-light" onclick="downloadOutput('uc1', 'xml')" title="Download">
+                                <i class="bi bi-download"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="editor-container">
+                            <div id="uc1-output" class="code-viewer"></div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i> XML output (TAF-JSG format)
+                        </small>
+                        <span id="uc1-execution-time" class="badge bg-secondary d-none">
+                            <i class="bi bi-clock"></i> <span></span>
+                        </span>
+                    </div>
                 </div>
-            </div>
-            <div class="card-footer bg-light">
-                <small class="text-muted">
-                    <i class="bi bi-info-circle"></i> Edit the JSON input above. Click "Run Function" to transform.
-                </small>
             </div>
         </div>
     </div>
 
-    <!-- Right Column - Output (XML) -->
-    <div class="col-lg-6">
-        <div class="card shadow-lg h-100 output-card">
-            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-file-earmark-code"></i> Output (XML)</span>
-                <div class="btn-group">
-                    <button type="button" class="btn btn-sm btn-light" onclick="copyOutput()" title="Copy to Clipboard">
-                        <i class="bi bi-clipboard"></i> Copy
-                    </button>
-                    <button type="button" class="btn btn-sm btn-light" onclick="downloadOutput()" title="Download XML">
-                        <i class="bi bi-download"></i> Download
-                    </button>
+    <!-- Use Case 2: Salesforce Negotiated Rates -->
+    <div class="tab-pane fade p-4" id="uc2" role="tabpanel" aria-labelledby="uc2-tab">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h4 class="mb-1"><i class="bi bi-currency-dollar text-warning"></i> TransformNegotiatedRates</h4>
+                <p class="text-muted mb-0">Transforms Salesforce negotiated rates to CSV format for IDL/S3, GDS Air, and BeNe routes</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="@IndexModel.TransformNegotiatedRatesSource" target="_blank" class="btn btn-outline-dark btn-sm">
+                    <i class="bi bi-github"></i> View Source
+                </a>
+                <button type="button" class="btn btn-primary" onclick="runFunction('uc2')">
+                    <i class="bi bi-play-fill"></i> Run Function
+                </button>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <!-- Input -->
+            <div class="col-lg-6">
+                <div class="card h-100 input-card">
+                    <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-braces"></i> Input (JSON)</span>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-light" onclick="formatJson('uc2')" title="Format JSON">
+                                <i class="bi bi-code-slash"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-light" onclick="loadSampleData('uc2')" title="Load Sample">
+                                <i class="bi bi-file-earmark-code"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-light" onclick="clearEditor('uc2')" title="Clear">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="editor-container">
+                            <div id="uc2-input" class="code-editor"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="card-body p-0">
-                <div class="editor-container">
-                    <div id="xmlViewer" class="code-viewer"></div>
+            <!-- Output -->
+            <div class="col-lg-6">
+                <div class="card h-100 output-card" id="uc2-output-card">
+                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-file-earmark-spreadsheet"></i> Output (JSON with CSV)</span>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-light" onclick="copyOutput('uc2')" title="Copy">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-light" onclick="downloadOutput('uc2', 'json')" title="Download">
+                                <i class="bi bi-download"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="editor-container">
+                            <div id="uc2-output" class="code-viewer"></div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i> Response with CSV content for each route
+                        </small>
+                        <span id="uc2-execution-time" class="badge bg-secondary d-none">
+                            <i class="bi bi-clock"></i> <span></span>
+                        </span>
+                    </div>
                 </div>
             </div>
-            <div class="card-footer bg-light d-flex justify-content-between align-items-center">
-                <small class="text-muted">
-                    <i class="bi bi-info-circle"></i> XML output will appear here after execution.
-                </small>
-                <span id="execution-time" class="badge bg-secondary d-none">
-                    <i class="bi bi-clock"></i> <span id="exec-time-value"></span>
-                </span>
+        </div>
+    </div>
+
+    <!-- Use Case 3: Network Rail CIF -->
+    <div class="tab-pane fade p-4" id="uc3" role="tabpanel" aria-labelledby="uc3-tab">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h4 class="mb-1"><i class="bi bi-file-earmark-text text-success"></i> ProcessCifFile Functions</h4>
+                <p class="text-muted mb-0">Processes Network Rail CIF files - On-demand processing and schedule transformation</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="@IndexModel.ProcessCifFileSource" target="_blank" class="btn btn-outline-dark btn-sm">
+                    <i class="bi bi-github"></i> View Source
+                </a>
+            </div>
+        </div>
+        
+        <!-- Sub-tabs for CIF functions -->
+        <ul class="nav nav-pills mb-3" id="cifFunctionTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="cif-ondemand-tab" data-bs-toggle="pill" data-bs-target="#cif-ondemand" type="button" role="tab">
+                    <i class="bi bi-play-circle"></i> ProcessCifOnDemand
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="cif-transform-tab" data-bs-toggle="pill" data-bs-target="#cif-transform" type="button" role="tab">
+                    <i class="bi bi-arrow-repeat"></i> TransformCifSchedule
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content" id="cifFunctionTabsContent">
+            <!-- ProcessCifOnDemand -->
+            <div class="tab-pane fade show active" id="cif-ondemand" role="tabpanel">
+                <div class="d-flex justify-content-end mb-3">
+                    <button type="button" class="btn btn-primary" onclick="runFunction('uc3-ondemand')">
+                        <i class="bi bi-play-fill"></i> Run ProcessCifOnDemand
+                    </button>
+                </div>
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <div class="card h-100 input-card">
+                            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-braces"></i> Input (JSON)</span>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-sm btn-light" onclick="formatJson('uc3-ondemand')" title="Format JSON">
+                                        <i class="bi bi-code-slash"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-light" onclick="loadSampleData('uc3-ondemand')" title="Load Sample">
+                                        <i class="bi bi-file-earmark-code"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-light" onclick="clearEditor('uc3-ondemand')" title="Clear">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="editor-container">
+                                    <div id="uc3-ondemand-input" class="code-editor"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card h-100 output-card" id="uc3-ondemand-output-card">
+                            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-file-earmark-code"></i> Output (JSON)</span>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-sm btn-light" onclick="copyOutput('uc3-ondemand')" title="Copy">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-light" onclick="downloadOutput('uc3-ondemand', 'json')" title="Download">
+                                        <i class="bi bi-download"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="editor-container">
+                                    <div id="uc3-ondemand-output" class="code-viewer"></div>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle"></i> Processing result with statistics
+                                </small>
+                                <span id="uc3-ondemand-execution-time" class="badge bg-secondary d-none">
+                                    <i class="bi bi-clock"></i> <span></span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- TransformCifSchedule -->
+            <div class="tab-pane fade" id="cif-transform" role="tabpanel">
+                <div class="d-flex justify-content-end mb-3">
+                    <button type="button" class="btn btn-primary" onclick="runFunction('uc3-transform')">
+                        <i class="bi bi-play-fill"></i> Run TransformCifSchedule
+                    </button>
+                </div>
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <div class="card h-100 input-card">
+                            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-braces"></i> Input (CIF Schedule JSON)</span>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-sm btn-light" onclick="formatJson('uc3-transform')" title="Format JSON">
+                                        <i class="bi bi-code-slash"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-light" onclick="loadSampleData('uc3-transform')" title="Load Sample">
+                                        <i class="bi bi-file-earmark-code"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-light" onclick="clearEditor('uc3-transform')" title="Clear">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="editor-container">
+                                    <div id="uc3-transform-input" class="code-editor"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card h-100 output-card" id="uc3-transform-output-card">
+                            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-file-earmark-code"></i> Output (Event JSON)</span>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-sm btn-light" onclick="copyOutput('uc3-transform')" title="Copy">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-light" onclick="downloadOutput('uc3-transform', 'json')" title="Download">
+                                        <i class="bi bi-download"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="editor-container">
+                                    <div id="uc3-transform-output" class="code-viewer"></div>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle"></i> InfrastructurePathwayConfirmed event
+                                </small>
+                                <span id="uc3-transform-execution-time" class="badge bg-secondary d-none">
+                                    <i class="bi bi-clock"></i> <span></span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -178,28 +437,23 @@
 
 <style>
     .editor-container {
-        height: 450px;
+        height: 350px;
         border: 1px solid #dee2e6;
     }
     
     .CodeMirror {
         height: 100% !important;
         font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-        font-size: 14px;
+        font-size: 13px;
     }
     
-    .input-card {
+    .input-card, .output-card {
         border: 2px solid transparent;
         transition: border-color 0.3s ease;
     }
     
     .input-card:focus-within {
         border-color: #0dcaf0;
-    }
-    
-    .output-card {
-        border: 2px solid transparent;
-        transition: border-color 0.3s ease;
     }
     
     .output-card.has-content {
@@ -235,6 +489,10 @@
         background: linear-gradient(135deg, #198754 0%, #157347 100%) !important;
     }
     
+    .card-header.bg-warning {
+        background: linear-gradient(135deg, #ffc107 0%, #d39e00 100%) !important;
+    }
+    
     .card-header.bg-danger {
         background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%) !important;
     }
@@ -252,54 +510,152 @@
         word-break: break-all;
     }
     
-    .code-editor, .code-viewer {
-        height: 100%;
+    .nav-tabs .nav-link {
+        color: #495057;
+        font-weight: 500;
+    }
+    
+    .nav-tabs .nav-link.active {
+        font-weight: 600;
+        border-bottom: 3px solid #0d6efd;
+    }
+    
+    .nav-pills .nav-link.active {
+        background-color: #198754;
+    }
+    
+    .tab-content {
+        background: #fff;
     }
 </style>
 
 <script>
-    let jsonEditor;
-    let xmlViewer;
-    let currentOutput = '';
-
+    // Editor instances
+    const editors = {};
+    const outputs = {};
+    
+    // Function URLs
+    const functionUrls = {
+        'uc1': '@Model.TransformTrainPlanUrl',
+        'uc2': '@Model.TransformNegotiatedRatesUrl',
+        'uc3-ondemand': '@Model.ProcessCifOnDemandUrl',
+        'uc3-transform': '@Model.TransformCifScheduleUrl'
+    };
+    
+    // Sample data for each use case
     const sampleData = {
-        id: "sample-001",
-        serviceCode: "ES9123",
-        pathway: "LON-PAR",
-        travelDate: "@DateTime.Now.AddDays(1).ToString("yyyy-MM-dd")",
-        passagePoints: [
-            {
-                locationCode: "LONDON_ST_PANCRAS",
-                arrivalTime: null,
-                departureTime: "08:30"
-            },
-            {
-                locationCode: "ASHFORD_INTL",
-                arrivalTime: "08:55",
-                departureTime: "08:58"
-            },
-            {
-                locationCode: "LILLE_EUROPE",
-                arrivalTime: "10:20",
-                departureTime: "10:25"
-            },
-            {
-                locationCode: "PARIS_NORD",
-                arrivalTime: "11:17",
-                departureTime: null
+        'uc1': {
+            id: "sample-001",
+            serviceCode: "ES9123",
+            pathway: "LON-PAR",
+            travelDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+            passagePoints: [
+                { locationCode: "LONDON_ST_PANCRAS", arrivalTime: null, departureTime: "08:30" },
+                { locationCode: "ASHFORD_INTL", arrivalTime: "08:55", departureTime: "08:58" },
+                { locationCode: "LILLE_EUROPE", arrivalTime: "10:20", departureTime: "10:25" },
+                { locationCode: "PARIS_NORD", arrivalTime: "11:17", departureTime: null }
+            ],
+            origin: "LONDON_ST_PANCRAS",
+            destination: "PARIS_NORD",
+            status: "ACTIVE",
+            planType: "SCHEDULED",
+            country: "UK"
+        },
+        'uc2': {
+            extractRoute: "ALL",
+            priority: "ALL",
+            correlationId: null,
+            negotiatedRates: [
+                {
+                    id: "NR-001",
+                    accountId: "ACC-12345",
+                    accountName: "ACME Travel Corp",
+                    tariffCode: "CORP-STD-2026",
+                    routeCode: "LON-PAR",
+                    origin: "London St Pancras",
+                    destination: "Paris Nord",
+                    validFrom: new Date().toISOString().split('T')[0],
+                    validTo: new Date(Date.now() + 365*86400000).toISOString().split('T')[0],
+                    rateType: "GROUND",
+                    distributionType: "IDL",
+                    priority: "HIGH",
+                    currency: "GBP",
+                    adultFare: 125.00,
+                    childFare: 62.50,
+                    status: "ACTIVE"
+                },
+                {
+                    id: "NR-002",
+                    accountId: "ACC-67890",
+                    accountName: "Global Travel Services",
+                    tariffCode: "GDS-AIR-2026",
+                    routeCode: "LON-BRU",
+                    origin: "London St Pancras",
+                    destination: "Brussels Midi",
+                    validFrom: new Date().toISOString().split('T')[0],
+                    validTo: new Date(Date.now() + 180*86400000).toISOString().split('T')[0],
+                    rateType: "GDS",
+                    distributionType: "AMADEUS",
+                    priority: "MEDIUM",
+                    currency: "EUR",
+                    adultFare: 95.00,
+                    childFare: 47.50,
+                    status: "ACTIVE"
+                }
+            ]
+        },
+        'uc3-ondemand': {
+            fileType: "update",
+            forceRefresh: false,
+            dateRange: {
+                start: new Date().toISOString().split('T')[0],
+                end: new Date(Date.now() + 7*86400000).toISOString().split('T')[0]
             }
-        ],
-        origin: "LONDON_ST_PANCRAS",
-        destination: "PARIS_NORD",
-        status: "ACTIVE",
-        planType: "SCHEDULED",
-        country: "UK"
+        },
+        'uc3-transform': {
+            CIF_train_uid: "W12345",
+            CIF_stp_indicator: "N",
+            schedule_start_date: new Date().toISOString().split('T')[0],
+            schedule_end_date: new Date(Date.now() + 90*86400000).toISOString().split('T')[0],
+            schedule_days_runs: "1111100",
+            train_status: "P",
+            train_category: "XX",
+            atoc_code: "VT",
+            applicable_timetable: "Y",
+            schedule_location: [
+                { tiploc_code: "EUSTON", location_type: "LO", record_identity: "LO", departure: "0700", public_departure: "0700", platform: "8" },
+                { tiploc_code: "MKTNKYL", location_type: "LI", record_identity: "LI", arrival: "0745", departure: "0747", public_arrival: "0745", public_departure: "0747", platform: "2" },
+                { tiploc_code: "MNCRPIC", location_type: "LT", record_identity: "LT", arrival: "0920", public_arrival: "0920", platform: "1" }
+            ]
+        }
     };
 
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize JSON editor
-        jsonEditor = CodeMirror(document.getElementById('jsonEditor'), {
-            mode: 'application/json',
+        // Initialize all editors
+        initializeEditor('uc1', 'javascript', 'xml');
+        
+        // Initialize UC2 and UC3 editors when their tabs are shown
+        document.getElementById('uc2-tab').addEventListener('shown.bs.tab', function() {
+            if (!editors['uc2-input']) {
+                initializeEditor('uc2', 'javascript', 'javascript');
+            }
+        });
+        
+        document.getElementById('uc3-tab').addEventListener('shown.bs.tab', function() {
+            if (!editors['uc3-ondemand-input']) {
+                initializeEditor('uc3-ondemand', 'javascript', 'javascript');
+                initializeEditor('uc3-transform', 'javascript', 'javascript');
+            }
+        });
+        
+        // Load sample data for UC1
+        loadSampleData('uc1');
+    });
+
+    function initializeEditor(id, inputMode, outputMode) {
+        // Initialize input editor
+        editors[`${id}-input`] = CodeMirror(document.getElementById(`${id}-input`), {
+            mode: inputMode === 'javascript' ? 'application/json' : inputMode,
             theme: 'dracula',
             lineNumbers: true,
             matchBrackets: true,
@@ -310,9 +666,9 @@
             tabSize: 2
         });
 
-        // Initialize XML viewer (read-only)
-        xmlViewer = CodeMirror(document.getElementById('xmlViewer'), {
-            mode: 'xml',
+        // Initialize output viewer
+        editors[`${id}-output`] = CodeMirror(document.getElementById(`${id}-output`), {
+            mode: outputMode === 'javascript' ? 'application/json' : outputMode,
             theme: 'dracula',
             lineNumbers: true,
             readOnly: true,
@@ -320,50 +676,86 @@
             gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
             lineWrapping: true
         });
-
-        // Load sample data by default
-        loadSampleData();
         
-        // Set placeholder for XML viewer
-        xmlViewer.setValue('<!-- XML output will appear here after running the function -->\n\n<!-- Click "Run Function" to transform the JSON input to TAF-JSG XML format -->');
-    });
-
-    function loadSampleData() {
-        jsonEditor.setValue(JSON.stringify(sampleData, null, 2));
+        outputs[id] = '';
     }
 
-    function formatJson() {
+    function loadSampleData(id) {
+        const editor = editors[`${id}-input`];
+        if (editor && sampleData[id]) {
+            editor.setValue(JSON.stringify(sampleData[id], null, 2));
+        }
+    }
+
+    function formatJson(id) {
+        const editor = editors[`${id}-input`];
+        if (!editor) return;
+        
         try {
-            const content = jsonEditor.getValue();
+            const content = editor.getValue();
             const parsed = JSON.parse(content);
-            jsonEditor.setValue(JSON.stringify(parsed, null, 2));
+            editor.setValue(JSON.stringify(parsed, null, 2));
             showNotification('success', 'JSON formatted successfully');
         } catch (error) {
             showNotification('error', 'Invalid JSON: ' + error.message);
         }
     }
 
-    function clearInput() {
-        jsonEditor.setValue('');
-        xmlViewer.setValue('');
-        currentOutput = '';
+    function clearEditor(id) {
+        const inputEditor = editors[`${id}-input`];
+        const outputEditor = editors[`${id}-output`];
+        
+        if (inputEditor) inputEditor.setValue('');
+        if (outputEditor) outputEditor.setValue('');
+        
+        outputs[id] = '';
         hideError();
-        document.querySelector('.output-card').classList.remove('has-content', 'has-error');
-        document.getElementById('execution-time').classList.add('d-none');
+        
+        const outputCard = document.getElementById(`${id}-output-card`);
+        if (outputCard) {
+            outputCard.classList.remove('has-content', 'has-error');
+        }
+        
+        const execTime = document.getElementById(`${id}-execution-time`);
+        if (execTime) {
+            execTime.classList.add('d-none');
+        }
+        
         updateStatus('ready');
     }
 
-    async function runFunction() {
-        const functionUrl = document.getElementById('functionUrl').value.trim();
+    function getFunctionUrl(id) {
+        const baseUrl = document.getElementById('functionBaseUrl').value.trim().replace(/\/$/, '');
+        switch (id) {
+            case 'uc1': return `${baseUrl}/api/TransformTrainPlan`;
+            case 'uc2': return `${baseUrl}/api/TransformNegotiatedRates`;
+            case 'uc3-ondemand': return `${baseUrl}/api/ProcessCifOnDemand`;
+            case 'uc3-transform': return `${baseUrl}/api/TransformCifSchedule`;
+            default: return '';
+        }
+    }
+
+    async function runFunction(id) {
+        const functionUrl = getFunctionUrl(id);
         if (!functionUrl) {
-            showNotification('error', 'Please enter a function URL');
+            showNotification('error', 'Please enter a function base URL');
+            return;
+        }
+
+        const inputEditor = editors[`${id}-input`];
+        const outputEditor = editors[`${id}-output`];
+        
+        if (!inputEditor || !outputEditor) {
+            showNotification('error', 'Editor not initialized');
             return;
         }
 
         let input;
         try {
-            input = jsonEditor.getValue();
-            JSON.parse(input); // Validate JSON
+            input = inputEditor.getValue();
+            if (input.trim()) {
+                JSON.parse(input); // Validate JSON
+            }
         } catch (error) {
             showNotification('error', 'Invalid JSON input: ' + error.message);
             return;
@@ -378,13 +770,11 @@
         try {
             const response = await fetch('/api/FunctionDebug/execute', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     functionUrl: functionUrl,
                     functionKey: document.getElementById('functionKey').value.trim(),
-                    input: input
+                    input: input || '{}'
                 })
             });
 
@@ -392,26 +782,50 @@
             const executionTime = ((endTime - startTime) / 1000).toFixed(2);
 
             const result = await response.json();
+            const outputCard = document.getElementById(`${id}-output-card`);
 
             if (result.success) {
-                currentOutput = result.output;
-                xmlViewer.setValue(formatXml(result.output));
-                document.querySelector('.output-card').classList.add('has-content');
-                document.querySelector('.output-card').classList.remove('has-error');
+                outputs[id] = result.output;
+                
+                // Format output based on content type
+                let formattedOutput = result.output;
+                if (result.output.trim().startsWith('<')) {
+                    formattedOutput = formatXml(result.output);
+                    editors[`${id}-output`].setOption('mode', 'xml');
+                } else {
+                    try {
+                        const parsed = JSON.parse(result.output);
+                        formattedOutput = JSON.stringify(parsed, null, 2);
+                        editors[`${id}-output`].setOption('mode', 'application/json');
+                    } catch {
+                        // Keep as-is
+                    }
+                }
+                
+                outputEditor.setValue(formattedOutput);
+                if (outputCard) {
+                    outputCard.classList.add('has-content');
+                    outputCard.classList.remove('has-error');
+                }
                 updateStatus('success');
                 showNotification('success', 'Function executed successfully');
             } else {
-                currentOutput = '';
-                xmlViewer.setValue('<!-- Error occurred - see error panel below -->');
-                document.querySelector('.output-card').classList.add('has-error');
-                document.querySelector('.output-card').classList.remove('has-content');
+                outputs[id] = '';
+                outputEditor.setValue('// Error occurred - see error panel below');
+                if (outputCard) {
+                    outputCard.classList.add('has-error');
+                    outputCard.classList.remove('has-content');
+                }
                 showError(result.error, result.stackTrace);
                 updateStatus('error');
             }
 
             // Show execution time
-            document.getElementById('exec-time-value').textContent = executionTime + 's';
-            document.getElementById('execution-time').classList.remove('d-none');
+            const execTimeEl = document.getElementById(`${id}-execution-time`);
+            if (execTimeEl) {
+                execTimeEl.querySelector('span').textContent = executionTime + 's';
+                execTimeEl.classList.remove('d-none');
+            }
 
         } catch (error) {
             showError('Network error: ' + error.message, null);
@@ -481,30 +895,31 @@
         }
     }
 
-    function copyOutput() {
-        if (!currentOutput) {
+    function copyOutput(id) {
+        if (!outputs[id]) {
             showNotification('error', 'No output to copy');
             return;
         }
         
-        navigator.clipboard.writeText(currentOutput).then(() => {
+        navigator.clipboard.writeText(outputs[id]).then(() => {
             showNotification('success', 'Output copied to clipboard');
         }).catch(err => {
             showNotification('error', 'Failed to copy: ' + err.message);
         });
     }
 
-    function downloadOutput() {
-        if (!currentOutput) {
+    function downloadOutput(id, extension) {
+        if (!outputs[id]) {
             showNotification('error', 'No output to download');
             return;
         }
         
-        const blob = new Blob([currentOutput], { type: 'application/xml' });
+        const mimeType = extension === 'xml' ? 'application/xml' : 'application/json';
+        const blob = new Blob([outputs[id]], { type: mimeType });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'transformed-output.xml';
+        a.download = `${id}-output.${extension}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
