@@ -362,6 +362,7 @@ module mockServer 'modules/mock-server.bicep' = {
     cpuCores: '0.5'
     memoryGb: '1'
     functionUrl: functionApp.outputs.functionEndpoint
+    functionBaseUrl: functionApp.outputs.functionBaseUrl
     functionKey: '' // Function key will be set by deploy-mockserver.ps1 after function deployment
     serviceBusConnectionString: enableSalesforceIntegration ? serviceBus.outputs.sendConnectionString : ''
     serviceBusQueueName: enableSalesforceIntegration ? serviceBus.outputs.queueName : ''
@@ -426,6 +427,7 @@ output backupSftpEndpoint string = sftpBackup.outputs.sftpEndpoint
 output backupSftpFqdn string = sftpBackup.outputs.containerAppFqdn
 
 output functionAppName string = functionApp.outputs.functionAppName
+output functionBaseUrl string = functionApp.outputs.functionBaseUrl
 output functionEndpoint string = functionApp.outputs.functionEndpoint
 
 output mockServerName string = mockServer.outputs.containerAppName

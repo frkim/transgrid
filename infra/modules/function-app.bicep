@@ -130,5 +130,6 @@ output functionAppId string = functionApp.id
 output functionAppName string = functionApp.name
 output functionAppDefaultHostname string = functionApp.properties.defaultHostName
 output functionAppPrincipalId string = functionApp.identity.principalId
+output functionBaseUrl string = 'https://${functionApp.properties.defaultHostName}'
 output functionEndpoint string = 'https://${functionApp.properties.defaultHostName}/api'
 output hostingPlanId string = hostingPlan.id

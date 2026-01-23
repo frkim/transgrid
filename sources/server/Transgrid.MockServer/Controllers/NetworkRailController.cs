@@ -128,10 +128,14 @@ public class NetworkRailController : ControllerBase
     [HttpPost("process-azure")]
     public async Task<ActionResult> ProcessViaAzureFunction([FromBody] AzureCifProcessRequest request)
     {
-        var functionEndpoint = _configuration["AzureFunctionEndpoint"];
+        var functionEndpoint = _configuration["FunctionDebug:FunctionBaseUrl"] 
+                            ?? _configuration["AzureFunctionEndpoint"];
+        var functionKey = _configuration["FunctionDebug:FunctionKey"] 
+                       ?? _configuration["FUNCTION_KEY"];
+        
         if (string.IsNullOrEmpty(functionEndpoint))
         {
-            return BadRequest(new { error = "Azure Function endpoint not configured. Set AzureFunctionEndpoint in appsettings.json" });
+            return BadRequest(new { error = "Azure Function endpoint not configured. Set FunctionDebug:FunctionBaseUrl in appsettings.json" });
         }
 
         try
@@ -148,10 +152,14 @@ public class NetworkRailController : ControllerBase
             var correlationId = Guid.NewGuid().ToString();
             client.DefaultRequestHeaders.Add("X-Correlation-Id", correlationId);
 
-            var response = await client.PostAsJsonAsync(
-                $"{functionEndpoint}/api/ProcessCifOnDemand",
-                requestBody
-            );
+            // Build URL with function key if available
+            var functionUrl = $"{functionEndpoint.TrimEnd('/')}/api/ProcessCifOnDemand";
+            if (!string.IsNullOrEmpty(functionKey))
+            {
+                functionUrl += $"?code={functionKey}";
+            }
+
+            var response = await client.PostAsJsonAsync(functionUrl, requestBody);
 
             var content = await response.Content.ReadAsStringAsync();
 
@@ -193,7 +201,11 @@ public class NetworkRailController : ControllerBase
     [HttpPost("transform-azure")]
     public async Task<ActionResult> TransformViaAzureFunction([FromBody] object cifSchedule)
     {
-        var functionEndpoint = _configuration["AzureFunctionEndpoint"];
+        var functionEndpoint = _configuration["FunctionDebug:FunctionBaseUrl"] 
+                            ?? _configuration["AzureFunctionEndpoint"];
+        var functionKey = _configuration["FunctionDebug:FunctionKey"] 
+                       ?? _configuration["FUNCTION_KEY"];
+        
         if (string.IsNullOrEmpty(functionEndpoint))
         {
             return BadRequest(new { error = "Azure Function endpoint not configured" });
@@ -202,10 +214,15 @@ public class NetworkRailController : ControllerBase
         try
         {
             var client = _httpClientFactory.CreateClient();
-            var response = await client.PostAsJsonAsync(
-                $"{functionEndpoint}/api/TransformCifSchedule",
-                cifSchedule
-            );
+            
+            // Build URL with function key if available
+            var functionUrl = $"{functionEndpoint.TrimEnd('/')}/api/TransformCifSchedule";
+            if (!string.IsNullOrEmpty(functionKey))
+            {
+                functionUrl += $"?code={functionKey}";
+            }
+            
+            var response = await client.PostAsJsonAsync(functionUrl, cifSchedule);
 
             var content = await response.Content.ReadAsStringAsync();
             return Content(content, "application/json");
@@ -222,14 +239,22 @@ public class NetworkRailController : ControllerBase
     [HttpGet("azure-status")]
     public ActionResult GetAzureFunctionStatus()
     {
-        var functionEndpoint = _configuration["AzureFunctionEndpoint"];
+        var functionEndpoint = _configuration["FunctionDebug:FunctionBaseUrl"] 
+                            ?? _configuration["AzureFunctionEndpoint"];
+        var functionKey = _configuration["FunctionDebug:FunctionKey"] 
+                       ?? _configuration["FUNCTION_KEY"];
+        var hasKey = !string.IsNullOrEmpty(functionKey);
+        
         return Ok(new
         {
             configured = !string.IsNullOrEmpty(functionEndpoint),
-            endpoint = string.IsNullOrEmpty(functionEndpoint) ? null : $"{functionEndpoint}/api/...",
+            hasKey,
+            endpoint = string.IsNullOrEmpty(functionEndpoint) ? null : $"{functionEndpoint.TrimEnd('/')}/api/...",
             message = string.IsNullOrEmpty(functionEndpoint)
-                ? "Azure Function endpoint not configured. Set 'AzureFunctionEndpoint' in appsettings.json"
-                : "Azure Function endpoint is configured"
+                ? "Azure Function endpoint not configured. Set 'FunctionDebug:FunctionBaseUrl' in appsettings.json"
+                : hasKey 
+                    ? "Azure Function endpoint and key are configured"
+                    : "Azure Function endpoint configured but no function key - calls may fail with 401/404"
         });
     }
 

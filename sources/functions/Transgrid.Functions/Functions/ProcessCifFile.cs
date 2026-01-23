@@ -139,7 +139,6 @@ public class ProcessCifFile
                 sampleContent, runId, request.ForceRefresh);
 
             var response = req.CreateResponse(HttpStatusCode.OK);
-            response.Headers.Add("Content-Type", "application/json");
             response.Headers.Add("X-Correlation-Id", correlationId);
             response.Headers.Add("X-Run-Id", runId);
             
@@ -158,7 +157,6 @@ public class ProcessCifFile
             };
             
             var response = req.CreateResponse(HttpStatusCode.InternalServerError);
-            response.Headers.Add("Content-Type", "application/json");
             await response.WriteAsJsonAsync(errorResult);
             return response;
         }
@@ -198,7 +196,6 @@ public class ProcessCifFile
             var eventData = _cifProcessingService.TransformToEvent(schedule, correlationId);
 
             var response = req.CreateResponse(HttpStatusCode.OK);
-            response.Headers.Add("Content-Type", "application/json");
             response.Headers.Add("X-Correlation-Id", correlationId);
             
             await response.WriteAsJsonAsync(eventData);
@@ -224,7 +221,6 @@ public class ProcessCifFile
         HttpRequestData req, HttpStatusCode statusCode, string message)
     {
         var response = req.CreateResponse(statusCode);
-        response.Headers.Add("Content-Type", "application/json");
         
         await response.WriteAsJsonAsync(new
         {

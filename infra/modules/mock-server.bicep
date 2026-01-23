@@ -125,10 +125,6 @@ resource mockServerContainerApp 'Microsoft.App/containerApps@2023-11-02-preview'
               value: functionBaseUrl
             }
             {
-              name: 'AzureFunctionEndpoint'
-              value: functionBaseUrl
-            }
-            {
               name: 'ServiceBus__QueueName'
               value: serviceBusQueueName
             }

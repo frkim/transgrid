@@ -297,7 +297,6 @@ Write-Information "   Function Base URL: $FunctionBaseUrl"
 $envVars = @(
     "FunctionDebug__FunctionUrl=$FunctionUrl",
     "FunctionDebug__FunctionBaseUrl=$FunctionBaseUrl",
-    "AzureFunctionEndpoint=$FunctionBaseUrl",
     "LogicApp__HttpTriggerUrl=$LogicAppHttpTriggerUrl"
 )
 
