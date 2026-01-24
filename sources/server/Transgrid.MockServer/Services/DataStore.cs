@@ -155,14 +155,12 @@ public class DataStore
         }
     }
 
-    // Generate New Data
+    // Generate New Data - adds to existing data instead of replacing
     public void GenerateNewData()
     {
         lock (_lock)
         {
-            _trainPlans.Clear();
-            _negotiatedRates.Clear();
-            _cifSchedules.Clear();
+            // Add new data without clearing existing
             GenerateBaselineData();
         }
     }
@@ -730,7 +728,7 @@ public class DataStore
         var actions = new[] { "CREATE", "UPDATE", "DELETE" };
         var statuses = new[] { "Pending", "Extracted", "Failed" };
 
-        for (int i = 0; i < 30; i++)
+        for (int i = 0; i < 90; i++)
         {
             var codeType = codeTypes[random.Next(codeTypes.Length)];
             var isGds = codeType.Contains("Amadeus") || codeType.Contains("Apollo") || codeType.Contains("Galileo") || codeType.Contains("Sabre");

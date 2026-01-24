@@ -1,7 +1,7 @@
 // Global functions for data management
 
 async function generateNewData() {
-    if (!confirm('Are you sure you want to generate new data? This will replace all current data.')) {
+    if (!confirm('Are you sure you want to generate new data? This will add new records to existing data.')) {
         return;
     }
     

@@ -197,9 +197,22 @@ public class SalesforceController : ControllerBase
     [HttpPost("updateExtractStatus")]
     public ActionResult UpdateExtractStatus([FromBody] UpdateExtractStatusRequest request)
     {
-        if (request?.Ids == null || !request.Ids.Any())
+        // Handle null request
+        if (request == null)
         {
-            return BadRequest("No IDs provided");
+            return BadRequest("Request body is required");
+        }
+
+        // Handle empty IDs - return success with 0 updated (valid case when no rates to update)
+        if (request.Ids == null || !request.Ids.Any())
+        {
+            return Ok(new
+            {
+                updatedCount = 0,
+                status = request.Status ?? "Extracted",
+                extractDate = request.ExtractDate ?? DateTime.UtcNow,
+                message = "No IDs provided, nothing to update"
+            });
         }
 
         var rates = _dataStore.GetNegotiatedRates()
