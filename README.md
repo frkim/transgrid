@@ -6,6 +6,26 @@ Demo of Azure Integration Services for a train company. This simulates an integr
 
 ## Architecture
 
+![Transgrid Architecture](documents/images/Transgrid%20Architecture%20AIS.png)
+
+### Azure Services
+
+| Service | Purpose | SKU/Plan |
+|---------|---------|----------|
+| **Logic Apps Standard** | Workflow orchestration with recurrence and Service Bus triggers for RNE export and Salesforce integration | Workflow Standard WS1 |
+| **Azure Functions** | Serverless compute for JSON→XML/CSV transformations, XSD validation, and CIF file processing | Flex Consumption |
+| **Azure Service Bus** | Message broker for event-driven Salesforce Platform Event integration | Standard |
+| **Azure Blob Storage** | Persistent storage for exported XML/CSV files and CIF archives | Standard LRS |
+| **Azure Table Storage** | State management for failed exports retry pattern and extract audit logs | Standard LRS |
+| **Azure Managed Redis** | High-performance cache for Network Rail station mappings and schedule deduplication | Balanced B1 |
+| **Azure Container Apps** | Containerized hosting for SFTP servers and Mock API server | Consumption |
+| **Azure Files** | Persistent file shares for SFTP data, SSH keys, and startup scripts | Standard LRS |
+| **Application Insights** | End-to-end monitoring, diagnostics, and distributed tracing | Pay-as-you-go |
+| **Log Analytics** | Centralized logging and query workspace for all services | Per-GB |
+| **Virtual Network** | Network isolation for Container Apps environment | - |
+
+### Components Overview
+
 The solution consists of:
 
 - **Azure Functions** - XML/CSV transformation services for TAF-JSG, negotiated rates formats, and CIF schedule processing
@@ -180,3 +200,22 @@ transgrid/
     ├── UseCase_02_Salesforce_Rates.md
     └── UseCase_03_NetworkRail_CIF.md
 ```
+
+## Security Notice
+
+> **⚠️ POC / Demo Only - Not Production Ready**
+
+This project is a **Proof of Concept (POC)** designed to demonstrate Azure Integration Services capabilities. It is **not intended for production deployment** due to security considerations.
+
+To harden this implementation for production use, the following improvements are recommended:
+
+- **Remove storage access keys** - Use Managed Identities and Azure RBAC instead of connection strings
+- **Disable public endpoints** - Configure private endpoints for Storage, Service Bus, and Redis
+- **Enable Virtual Network integration** - Deploy Logic Apps and Functions within a VNet
+- **Implement Azure Private Link** - Secure connectivity to all PaaS services
+- **Use Azure Key Vault** - Store all secrets, certificates, and connection strings securely
+- **Enable Customer-Managed Keys (CMK)** - Encrypt data at rest with your own keys
+- **Configure NSG rules** - Restrict network traffic to only required flows
+- **Enable Azure Defender** - Activate threat protection for Storage, Service Bus, and Container Apps
+- **Implement API Management** - Add authentication, rate limiting, and API governance
+- **Enable audit logging** - Configure diagnostic settings for all resources to Log Analytics
