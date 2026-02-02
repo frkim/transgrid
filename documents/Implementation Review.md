@@ -8,9 +8,9 @@ This document reviews the implementation of all use cases and key capabilities d
 
 | Use Case | Status | Workflows | Functions | Notes |
 |----------|--------|-----------|-----------|-------|
-| RNE Operational Plans Export | ✅ Implemented | 4 workflows | 1 function | Full implementation with retry pattern |
-| Salesforce Negotiated Rates Export | ✅ Implemented | 1 workflow | 1 function | Service Bus integration |
-| Network Rail CIF Processing | ✅ Implemented | 1 workflow | 3 functions | Timer-triggered Azure Functions |
+| RNE Operational Plans Export | ✅ Implemented | [4 workflows](#workflows) | [1 function](#azure-functions-rne) | Full implementation with retry pattern |
+| Salesforce Negotiated Rates Export | ✅ Implemented | [1 workflow](#workflows-1) | [1 function](#azure-functions-salesforce) | Service Bus integration |
+| Network Rail CIF Processing | ✅ Implemented | [1 workflow](#workflows-2) | [3 functions](#azure-functions-cif) | Timer-triggered Azure Functions |
 
 ---
 
