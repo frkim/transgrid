@@ -196,10 +196,36 @@ transgrid/
 │   │       └── ...
 │   └── tests/                  # Test projects
 └── documents/                  # Documentation
-    ├── UseCase_01_RNE_Ops.md
-    ├── UseCase_02_Salesforce_Rates.md
-    └── UseCase_03_NetworkRail_CIF.md
+    └── ...
 ```
+
+## Documentation
+
+Detailed documentation is available in the [`documents/`](documents/) folder:
+
+### Use Case Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Azure Integration Services Use Cases](documents/Azure%20Integration%20Services%20Use%20Cases.md) | Overview of all use cases and key capabilities required |
+| [UseCase_01_RNE_Ops](documents/UseCase_01_RNE_Ops.md) | RNE Operational Plans Export - detailed specification |
+| [UseCase_02_Salesforce_Rates](documents/UseCase_02_Salesforce_Rates.md) | Salesforce Negotiated Rates Export - detailed specification |
+| [UseCase_03_NetworkRail_CIF](documents/UseCase_03_NetworkRail_CIF.md) | Network Rail CIF File Processing - detailed specification |
+| [Use Case Details](documents/Use%20Case%20Details.md) | Additional use case details and requirements |
+
+### Implementation Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Implementation Review](documents/Implementation%20Review.md) | Comprehensive review of all implemented use cases with code snippets and status |
+| [Logic Apps workflows](documents/Logic%20Apps%20workflows.md) | Mermaid flowchart diagrams for all 6 Logic Apps workflows |
+| [LogicApps Best Practices](documents/LogicApps_BestPractices.md) | Best practices for Logic Apps Standard development |
+
+### Architecture
+
+| Document | Description |
+|----------|-------------|
+| [Transgrid Azure AIS.drawio](documents/Transgrid%20Azure%20AIS.drawio) | Architecture diagram (Draw.io format) |
 
 ## Security Notice
 
