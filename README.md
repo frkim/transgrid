@@ -218,6 +218,7 @@ Detailed documentation is available in the [`documents/`](documents/) folder:
 | Document | Description |
 |----------|-------------|
 | [Implementation Review](documents/Implementation%20Review.md) | Comprehensive review of all implemented use cases with code snippets and status |
+| [Key Capabilities Review](documents/Key%20Capabilities%20Review.md) | Review of all key capabilities and their implementation status |
 | [Logic Apps workflows](documents/Logic%20Apps%20workflows.md) | Mermaid flowchart diagrams for all 6 Logic Apps workflows |
 | [LogicApps Best Practices](documents/LogicApps_BestPractices.md) | Best practices for Logic Apps Standard development |
 
